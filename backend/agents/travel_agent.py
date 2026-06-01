@@ -33,12 +33,68 @@ class TravelAgent:
         self.log("Initialization", f"Received request for {request.days} days in {request.city} with budget {request.budget}")
         
         # 1. Search Phase (A*)
-        # Mocking available destinations in the region
+        # Mocking available destinations in the region with associated activities
         destinations = [
-            {"name": "Ooty", "cost": 3000, "attributes": {"Adventure": 0.4, "Luxury": 0.6, "Culture": 0.5}},
-            {"name": "Coonoor", "cost": 2000, "attributes": {"Adventure": 0.3, "Luxury": 0.5, "Culture": 0.7}},
-            {"name": "Mysore", "cost": 2500, "attributes": {"Adventure": 0.2, "Luxury": 0.8, "Culture": 0.9}},
-            {"name": "Kodaikanal", "cost": 3500, "attributes": {"Adventure": 0.8, "Luxury": 0.4, "Culture": 0.3}}
+            {
+                "name": "Ooty", 
+                "cost": 3000, 
+                "attributes": {"Adventure": 0.4, "Luxury": 0.6, "Culture": 0.5},
+                "activities": [
+                    {"time": "Morning", "spot": "Ooty Botanical Gardens", "type": "Popular", "description": "A beautiful walk among rare flowers."},
+                    {"time": "Afternoon", "spot": "Hidden Valley", "type": "Underrated Spot", "description": "Trek through an unexplored valley away from tourists."},
+                    {"time": "Evening", "spot": "Ooty Lake Cafe", "type": "Relaxation", "description": "Enjoy hot chocolate by the lake."}
+                ]
+            },
+            {
+                "name": "Coonoor", 
+                "cost": 2000, 
+                "attributes": {"Adventure": 0.3, "Luxury": 0.5, "Culture": 0.7},
+                "activities": [
+                    {"time": "Morning", "spot": "Sim's Park", "type": "Popular", "description": "Explore the unique botanical park."},
+                    {"time": "Afternoon", "spot": "Dolphin's Nose", "type": "Photography", "description": "Breathtaking viewpoints for photographers."},
+                    {"time": "Evening", "spot": "Lamb's Rock Hidden Trail", "type": "Underrated Spot", "description": "A quiet sunset hike with panoramic views."}
+                ]
+            },
+            {
+                "name": "Mysore", 
+                "cost": 2500, 
+                "attributes": {"Adventure": 0.2, "Luxury": 0.8, "Culture": 0.9},
+                "activities": [
+                    {"time": "Morning", "spot": "Mysore Palace", "type": "Popular", "description": "Grandeur of the royal heritage."},
+                    {"time": "Afternoon", "spot": "Secret Silk Weaver's Alley", "type": "Underrated Spot", "description": "Watch artisans craft Mysore silk locally."},
+                    {"time": "Evening", "spot": "Brindavan Gardens", "type": "Relaxation", "description": "Musical fountains and evening walks."}
+                ]
+            },
+            {
+                "name": "Kodaikanal", 
+                "cost": 3500, 
+                "attributes": {"Adventure": 0.8, "Luxury": 0.4, "Culture": 0.3},
+                "activities": [
+                    {"time": "Morning", "spot": "Coaker's Walk", "type": "Popular", "description": "Stunning misty mountain pathways."},
+                    {"time": "Afternoon", "spot": "Guna Caves deep trek", "type": "Adventure", "description": "A thrilling and intense trek into the caves."},
+                    {"time": "Evening", "spot": "Silent Valley Viewpoint", "type": "Underrated Spot", "description": "A secret spot favored by locals for peace."}
+                ]
+            },
+            {
+                "name": "New Delhi", 
+                "cost": 4000, 
+                "attributes": {"Adventure": 0.2, "Luxury": 0.7, "Culture": 1.0},
+                "activities": [
+                    {"time": "Morning", "spot": "Red Fort", "type": "Popular", "description": "Historic Mughal architecture."},
+                    {"time": "Afternoon", "spot": "Mehrauli Archaeological Park", "type": "Underrated Spot", "description": "Explore ancient ruins hidden in plain sight."},
+                    {"time": "Evening", "spot": "Connaught Place", "type": "Shopping", "description": "Dinner and shopping at the city center."}
+                ]
+            },
+            {
+                "name": "Goa", 
+                "cost": 5000, 
+                "attributes": {"Adventure": 0.7, "Luxury": 0.8, "Culture": 0.4},
+                "activities": [
+                    {"time": "Morning", "spot": "Baga Beach", "type": "Popular", "description": "Water sports and vibrant beach shacks."},
+                    {"time": "Afternoon", "spot": "Divar Island", "type": "Underrated Spot", "description": "A completely untouched island showing old Goa."},
+                    {"time": "Evening", "spot": "Tito's Lane", "type": "Party", "description": "Experience the famous nightlife."}
+                ]
+            }
         ]
         
         self.log("Search (A*)", f"Expanded nodes to find shortest paths between potential destinations.")
@@ -117,7 +173,8 @@ class TravelAgent:
                 "destination": dest["name"],
                 "cost": dest["cost"],
                 "utility_score": round(adjusted_score, 2),
-                "reasoning": f"Chosen due to high utility. Live Weather: {weather_forecast}."
+                "reasoning": f"Chosen due to high utility. Live Weather: {weather_forecast}.",
+                "activities": dest.get("activities", [])
             })
             
             self.log("Decision Engine", f"Evaluated {dest['name']} with Utility: {adjusted_score:.2f} | Weather: {weather_forecast}")

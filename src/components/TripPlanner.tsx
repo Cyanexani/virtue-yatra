@@ -476,16 +476,49 @@ const TripPlanner = () => {
 
                 {tripSummary.interests.length > 0 && (
                   <div className="mb-6">
-                    <p className="text-sm text-muted-foreground mb-3">{t('planner.selectedInterests')}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {tripSummary.interests.map(interest => (
-                        <span
-                          key={interest}
-                          className="px-4 py-2 rounded-full bg-primary/10 text-primary font-medium text-sm"
-                        >
-                          {getInterestLabel(interest)}
-                        </span>
-                      ))}
+                    <p className="text-sm text-muted-foreground mb-3">{t('planner.selectedInterests') || "Curated Preferences"}</p>
+                    <div className="space-y-4">
+                      {/* Vibe Category */}
+                      {tripSummary.interests.some(i => ["Relaxation", "Luxury", "Party"].includes(i)) && (
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">✨ Vibe & Atmosphere</p>
+                          <div className="flex flex-wrap gap-2">
+                            {tripSummary.interests.filter(i => ["Relaxation", "Luxury", "Party"].includes(i)).map(interest => (
+                              <span key={interest} className="px-4 py-1.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-sm border border-purple-500/20 shadow-sm">
+                                {getInterestLabel(interest)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Activity Category */}
+                      {tripSummary.interests.some(i => ["Adventure", "Hiking", "Wildlife"].includes(i)) && (
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">🏃‍♂️ Activities</p>
+                          <div className="flex flex-wrap gap-2">
+                            {tripSummary.interests.filter(i => ["Adventure", "Hiking", "Wildlife"].includes(i)).map(interest => (
+                              <span key={interest} className="px-4 py-1.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium text-sm border border-orange-500/20 shadow-sm">
+                                {getInterestLabel(interest)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Experience Category */}
+                      {tripSummary.interests.some(i => ["Culture", "History", "Food", "Shopping", "Photography", "Beach"].includes(i)) && (
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">🎭 Experiences & Scenery</p>
+                          <div className="flex flex-wrap gap-2">
+                            {tripSummary.interests.filter(i => ["Culture", "History", "Food", "Shopping", "Photography", "Beach"].includes(i)).map(interest => (
+                              <span key={interest} className="px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-sm border border-blue-500/20 shadow-sm">
+                                {getInterestLabel(interest)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
