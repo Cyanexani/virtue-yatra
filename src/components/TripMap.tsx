@@ -1,28 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from "@vis.gl/react-google-maps";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Search, Navigation, BellRing, Loader2, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Fix default marker icons (Leaflet + bundlers issue)
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-const userIcon = L.divIcon({
-  className: "user-loc-icon",
-  html: `<div style="width:18px;height:18px;border-radius:9999px;background:hsl(var(--primary));box-shadow:0 0 0 6px hsla(var(--primary)/0.25);border:2px solid white;"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
 
 interface LatLng { lat: number; lng: number; }
 
@@ -37,15 +20,6 @@ const haversine = (a: LatLng, b: LatLng) => {
   return 2 * R * Math.asin(Math.sqrt(s));
 };
 
-const FlyTo = ({ pos }: { pos: LatLng | null }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (pos) map.flyTo([pos.lat, pos.lng], 14, { duration: 1.2 });
-  }, [pos, map]);
-  return null;
-};
-
-// Simple alarm using WebAudio (no asset needed)
 const playAlarm = () => {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -69,6 +43,47 @@ const playAlarm = () => {
   }
 };
 
+const MapController = ({ destination }: { destination: LatLng | null }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (map && destination) {
+      map.panTo(destination);
+      map.setZoom(14);
+    }
+  }, [map, destination]);
+  return null;
+};
+
+const MapCircle = ({ center, radius }: { center: LatLng, radius: number }) => {
+  const map = useMap();
+  const [circle, setCircle] = useState<google.maps.Circle | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+    const c = new google.maps.Circle({
+      strokeColor: "hsl(var(--secondary))",
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: "hsl(var(--secondary))",
+      fillOpacity: 0.15,
+      map,
+      center,
+      radius,
+    });
+    setCircle(c);
+    return () => c.setMap(null);
+  }, [map, center, radius]);
+
+  useEffect(() => {
+    if (circle) {
+      circle.setCenter(center);
+      circle.setRadius(radius);
+    }
+  }, [circle, center, radius]);
+
+  return null;
+};
+
 const TripMap = () => {
   const { toast } = useToast();
   const [query, setQuery] = useState("");
@@ -78,10 +93,11 @@ const TripMap = () => {
   const [tracking, setTracking] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [alertsOn, setAlertsOn] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(false);
   const watchId = useRef<number | null>(null);
   const alertedRef = useRef(false);
 
-  const center: [number, number] = [20.5937, 78.9629]; // India
+  const defaultCenter = { lat: 20.5937, lng: 78.9629 };
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -98,6 +114,7 @@ const TripMap = () => {
       }
       const d = data[0];
       setDestination({ lat: parseFloat(d.lat), lng: parseFloat(d.lon), label: d.display_name });
+      setInfoOpen(true);
       alertedRef.current = false;
       toast({ title: "Destination set 📍", description: d.display_name.split(",").slice(0, 2).join(",") });
     } catch (e) {
@@ -137,7 +154,6 @@ const TripMap = () => {
 
   useEffect(() => () => stopTracking(), [stopTracking]);
 
-  // Distance + proximity alert
   useEffect(() => {
     if (!destination || !userPos) return;
     const d = haversine(userPos, destination);
@@ -156,9 +172,10 @@ const TripMap = () => {
         });
       }
     }
-    // Reset alert if user moves far away again
     if (d > ALERT_RADIUS_M * 2) alertedRef.current = false;
   }, [userPos, destination, alertsOn, toast]);
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
   return (
     <section id="map" className="py-20 bg-gradient-to-b from-background to-muted/30">
@@ -222,31 +239,36 @@ const TripMap = () => {
             </div>
           )}
 
-          <div className="h-[500px] w-full">
-            <MapContainer center={center} zoom={5} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png"
-              />
-              {destination && (
-                <>
-                  <Marker position={[destination.lat, destination.lng]}>
-                    <Popup>{destination.label}</Popup>
-                  </Marker>
-                  <Circle
-                    center={[destination.lat, destination.lng]}
-                    radius={ALERT_RADIUS_M}
-                    pathOptions={{ color: "hsl(var(--secondary))", fillColor: "hsl(var(--secondary))", fillOpacity: 0.15 }}
-                  />
-                  <FlyTo pos={destination} />
-                </>
-              )}
-              {userPos && (
-                <Marker position={[userPos.lat, userPos.lng]} icon={userIcon}>
-                  <Popup>You are here</Popup>
-                </Marker>
-              )}
-            </MapContainer>
+          <div className="h-[500px] w-full relative">
+            <APIProvider apiKey={apiKey}>
+              <Map
+                defaultZoom={5}
+                defaultCenter={defaultCenter}
+                mapId="DEMO_MAP_ID"
+                gestureHandling="greedy"
+                disableDefaultUI={false}
+              >
+                {destination && (
+                  <>
+                    <AdvancedMarker position={destination} onClick={() => setInfoOpen(true)}>
+                      <Pin background={"#ef4444"} borderColor={"#b91c1c"} glyphColor={"#ffffff"} />
+                    </AdvancedMarker>
+                    {infoOpen && (
+                      <InfoWindow position={destination} onCloseClick={() => setInfoOpen(false)}>
+                        <div className="text-black">{destination.label}</div>
+                      </InfoWindow>
+                    )}
+                    <MapCircle center={destination} radius={ALERT_RADIUS_M} />
+                    <MapController destination={destination} />
+                  </>
+                )}
+                {userPos && (
+                  <AdvancedMarker position={userPos}>
+                    <div className="w-[18px] h-[18px] rounded-full bg-primary shadow-[0_0_0_6px_hsla(var(--primary)/0.25)] border-2 border-white" />
+                  </AdvancedMarker>
+                )}
+              </Map>
+            </APIProvider>
           </div>
         </Card>
       </div>
