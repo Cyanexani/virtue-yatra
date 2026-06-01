@@ -1,5 +1,19 @@
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
+import L from 'leaflet';
+
+// Fix for default marker icon in react-leaflet
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface AIItineraryDay {
   day: string;
@@ -13,87 +27,67 @@ interface InteractiveMapProps {
   itinerary: AIItineraryDay[];
 }
 
-const CITY_COORDINATES: Record<string, {lat: number, lng: number}> = {
-  "Ooty": {lat: 11.4102, lng: 76.6950},
-  "Coonoor": {lat: 11.3530, lng: 76.7959},
-  "Mysore": {lat: 12.2958, lng: 76.6394},
-  "Kodaikanal": {lat: 10.2381, lng: 77.4892},
-  "New Delhi": {lat: 28.6139, lng: 77.2090}, // Fallback/Default
-};
-
-const DirectionsPolyline = ({ path }: { path: {lat: number, lng: number}[] }) => {
-  const map = useMap();
-  const [polyline, setPolyline] = useState<google.maps.Polyline | null>(null);
-  
-  useEffect(() => {
-    if (!map) return;
-    
-    // Create polyline only once
-    const newPolyline = new google.maps.Polyline({
-      geodesic: true,
-      strokeColor: "hsl(var(--primary))",
-      strokeOpacity: 0.8,
-      strokeWeight: 4,
-    });
-    
-    newPolyline.setMap(map);
-    setPolyline(newPolyline);
-    
-    return () => {
-      newPolyline.setMap(null);
-    };
-  }, [map]);
-  
-  // Update path when it changes
-  useEffect(() => {
-    if (polyline) {
-      polyline.setPath(path);
-    }
-  }, [polyline, path]);
-  
-  return null;
+// Rough coordinates for our mock cities
+const CITY_COORDINATES: Record<string, [number, number]> = {
+  "Ooty": [11.4102, 76.6950],
+  "Coonoor": [11.3530, 76.7959],
+  "Mysore": [12.2958, 76.6394],
+  "Kodaikanal": [10.2381, 77.4892],
+  "New Delhi": [28.6139, 77.2090], // Fallback/Default
 };
 
 export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
-  const [mapCenter, setMapCenter] = useState<{lat: number, lng: number}>({lat: 11.4102, lng: 76.6950});
-  const [routeCoordinates, setRouteCoordinates] = useState<{lat: number, lng: number}[]>([]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([11.4102, 76.6950]);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
 
   useEffect(() => {
     if (itinerary && itinerary.length > 0) {
-      const coords = itinerary.map(item => {
+      // Find coordinates for each destination in the itinerary
+      const coords: [number, number][] = itinerary.map(item => {
         return CITY_COORDINATES[item.destination] || CITY_COORDINATES["New Delhi"];
       });
       
       setRouteCoordinates(coords);
       if (coords.length > 0) {
-        setMapCenter(coords[0]);
+        setMapCenter(coords[0]); // Center on the first destination
       }
     }
   }, [itinerary]);
 
   if (!itinerary || itinerary.length === 0) return null;
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-
   return (
     <div className="w-full h-64 md:h-96 rounded-xl overflow-hidden border border-border/50 shadow-md mb-6 relative z-0">
-      <APIProvider apiKey={apiKey}>
-        <Map
-          defaultZoom={7}
-          defaultCenter={mapCenter}
-          center={mapCenter}
-          mapId="DEMO_MAP_ID"
-          disableDefaultUI={false}
-          gestureHandling="greedy"
-        >
-          {routeCoordinates.map((position, idx) => (
-            <AdvancedMarker key={idx} position={position} title={itinerary[idx].destination}>
-              <Pin background={"hsl(var(--primary))"} borderColor={"hsl(var(--primary))"} glyphColor={"#ffffff"} />
-            </AdvancedMarker>
-          ))}
-          {routeCoordinates.length > 1 && <DirectionsPolyline path={routeCoordinates} />}
-        </Map>
-      </APIProvider>
+      <MapContainer 
+        center={mapCenter} 
+        zoom={7} 
+        scrollWheelZoom={false}
+        className="w-full h-full z-0"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {routeCoordinates.map((position, idx) => (
+          <Marker key={idx} position={position}>
+            <Popup>
+              <strong>{itinerary[idx].day.replace("_", " ")}</strong><br />
+              {itinerary[idx].destination}
+            </Popup>
+          </Marker>
+        ))}
+
+        {routeCoordinates.length > 1 && (
+          <Polyline 
+            positions={routeCoordinates} 
+            color="hsl(var(--primary))" 
+            weight={4} 
+            dashArray="10, 10" 
+            opacity={0.7} 
+          />
+        )}
+      </MapContainer>
     </div>
   );
 };

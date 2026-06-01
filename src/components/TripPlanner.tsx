@@ -51,6 +51,7 @@ const TripPlanner = () => {
     travelers: "1",
     budget: "",
     interests: [] as string[],
+    interests: [] as string[],
     specialRequests: "",
   });
 
