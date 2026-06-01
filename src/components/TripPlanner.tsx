@@ -44,6 +44,7 @@ const TripPlanner = () => {
   const [tripSummary, setTripSummary] = useState<TripSummary | null>(null);
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const [formData, setFormData] = useState({
     destination: "",
     startDate: "",
@@ -116,20 +117,42 @@ const TripPlanner = () => {
     }
   };
 
-  const applyAutofillData = (data: any) => {
+  const applyAutofillData = async (data: any) => {
     const start = new Date();
     const end = new Date();
     end.setDate(start.getDate() + (data.days || 3));
     
-    setFormData(prev => ({
-      ...prev,
-      destination: data.destination || prev.destination,
-      budget: data.budget || prev.budget,
+    const newFormData = {
+      ...formData,
+      destination: data.destination || formData.destination,
+      budget: data.budget || formData.budget,
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0],
-      interests: data.interests && data.interests.length > 0 ? data.interests : prev.interests,
-    }));
+      interests: data.interests && data.interests.length > 0 ? data.interests : formData.interests,
+    };
+
+    setFormData(newFormData);
     toast({ title: "Magic Autofill Complete! 🪄", description: "We extracted your trip details." });
+    
+    // Auto-trigger itinerary generation
+    setTripSummary(newFormData);
+    setShowSummary(true);
+    setShowItinerary(true);
+    
+    // Save to database if user is logged in
+    if (user && newFormData.destination) {
+      const { error } = await supabase.from('trips').insert({
+        user_id: user.id,
+        destination: newFormData.destination,
+        start_date: newFormData.startDate,
+        end_date: newFormData.endDate,
+        travelers: parseInt(newFormData.travelers),
+        budget: newFormData.budget || 'budget',
+        interests: newFormData.interests,
+        special_requests: newFormData.specialRequests || null,
+      });
+      if (!error) fetchSavedTrips();
+    }
   };
 
   const interestOptions = [
@@ -477,27 +500,69 @@ const TripPlanner = () => {
               )}
             </>
           ) : (
-            /* Trip Form */
-            <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
-              <div className="mb-8 p-6 rounded-xl bg-gradient-to-r from-primary/10 to-travel-ocean/10 border border-primary/20">
-                <Label className="flex items-center gap-2 text-lg mb-3">
-                  <Wand2 className="w-5 h-5 text-primary" />
-                  AI Magic Autofill
-                </Label>
-                <div className="flex gap-3">
-                  <Input 
-                    placeholder='Try "I want a 4 day luxury trip to Kerala for adventure"' 
+            /* Main Input Area */
+            <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-travel-ocean/5 pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col items-center max-w-2xl mx-auto space-y-6 py-6">
+                <div className="flex items-center gap-3 text-primary mb-2">
+                  <Wand2 className="w-8 h-8" />
+                  <h3 className="text-2xl font-bold">Ask the AI Planner</h3>
+                </div>
+                
+                <p className="text-center text-muted-foreground text-lg">
+                  Tell me about your dream vacation. I'll handle the logistics.
+                </p>
+
+                <div className="w-full relative shadow-lg rounded-2xl group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                  <Textarea 
+                    placeholder='e.g. "I want a 4 day luxury trip to Kerala for adventure and wildlife photography"' 
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleMagicAutofill()}
-                    className="flex-1 bg-background border-primary/30"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleMagicAutofill();
+                      }
+                    }}
+                    className="w-full min-h-[140px] p-6 text-lg bg-background border-primary/20 rounded-2xl resize-none focus:ring-0"
                   />
-                  <Button onClick={handleMagicAutofill} disabled={chatLoading} className="bg-primary hover:bg-primary/90 text-white">
-                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Autofill Form"}
-                  </Button>
+                  <div className="absolute bottom-4 right-4">
+                    <Button 
+                      onClick={handleMagicAutofill} 
+                      disabled={chatLoading || !chatInput.trim()} 
+                      className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md h-12 px-6"
+                    >
+                      {chatLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Parsing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5 mr-2" />
+                          Plan Trip
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-border/50 w-full text-center">
+                  <button 
+                    type="button"
+                    onClick={() => setShowManualForm(!showManualForm)}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+                  >
+                    {showManualForm ? "Hide manual entry form" : "Prefer manual entry? Click here"}
+                  </button>
                 </div>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Collapsible Manual Form */}
+              {showManualForm && (
+                <div className="mt-8 pt-8 border-t border-border/50 relative z-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Destination and Dates */}
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="space-y-2">
@@ -628,12 +693,14 @@ const TripPlanner = () => {
                   {loading ? t('planner.creating') : t('planner.createItinerary')}
                 </Button>
 
-                {!user && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    {t('planner.signInToSave')}
-                  </p>
-                )}
-              </form>
+                  {!user && (
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t('planner.signInToSave')}
+                    </p>
+                  )}
+                </form>
+              </div>
+              )}
             </Card>
           )}
         </div>
