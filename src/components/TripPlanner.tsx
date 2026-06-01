@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2, Wand2, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2, Wand2, Loader2, BrainCircuit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isGeminiConfigured, parseUserPrompt } from "@/services/gemini";
 import Itinerary from "@/components/Itinerary";
 
 interface TripSummary {
@@ -61,25 +62,23 @@ const TripPlanner = () => {
   const handleMagicAutofill = async () => {
     if (!chatInput) return;
     setChatLoading(true);
-    try {
-      // Try to hit the real backend if it's running
-      const resp = await fetch((import.meta.env.VITE_API_URL || "http://localhost:8000") + "/parse-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: chatInput })
-      });
-      
-      let data;
-      if (resp.ok) {
-        data = await resp.json();
-      } else {
-        throw new Error("Backend not available");
+    
+    let parsedData;
+    
+    // Try True AI Parsing first if configured
+    if (isGeminiConfigured()) {
+      try {
+        parsedData = await parseUserPrompt(chatInput);
+        console.log("Gemini Parsed Output:", parsedData);
+      } catch (geminiError) {
+        console.error("Gemini AI failed, falling back to NLP", geminiError);
+        parsedData = null;
       }
-      
-      applyAutofillData(data);
-    } catch (e) {
-      console.log("Falling back to local NLP parsing", e);
-      // Fallback NLP parsing so the demo works even without the python backend running!
+    }
+    
+    // Fallback to local NLP parsing
+    if (!parsedData) {
+      console.log("Using local NLP parsing");
       const msg = chatInput.toLowerCase();
       
       // 1. Flexible Budget Parsing
@@ -134,17 +133,16 @@ const TripPlanner = () => {
         }
       });
       
-      const uniqueInterests = Array.from(new Set(foundInterests));
-      
-      applyAutofillData({
+      parsedData = {
         destination: dest,
         budget,
-        days: Math.min(days, 30), // cap at 30 days
-        interests: uniqueInterests
-      });
-    } finally {
-      setChatLoading(false);
+        days: Math.min(days, 30),
+        interests: Array.from(new Set(foundInterests))
+      };
     }
+    
+    applyAutofillData(parsedData);
+    setChatLoading(false);
   };
 
   const applyAutofillData = async (data: any) => {
@@ -424,8 +422,7 @@ const TripPlanner = () => {
                   <div className="w-20 h-20 bg-gradient-to-br from-primary to-travel-ocean rounded-full flex items-center justify-center mx-auto mb-4">
                     <Check className="w-10 h-10 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold gradient-text mb-2">{t('planner.tripPlanned')}</h3>
-                  <p className="text-muted-foreground">
+                  <h3 className="text-2xl font-bold gradient-text mb-2">{t('planner.tripPlanned')}</h3>      <p className="text-muted-foreground">
                     {user ? t('planner.savedToHistory') : t('planner.signInToSave')}
                   </p>
                 </div>
@@ -569,8 +566,15 @@ const TripPlanner = () => {
               
               <div className="relative z-10 flex flex-col items-center max-w-2xl mx-auto space-y-6 py-6">
                 <div className="flex items-center gap-3 text-primary mb-2">
-                  <Wand2 className="w-8 h-8" />
-                  <h3 className="text-2xl font-bold">Ask the AI Planner</h3>
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-travel-ocean flex items-center justify-center shadow-lg">
+                    <BrainCircuit className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold">{t('planner.askAI') || "Ask the AI Planner"}</h3>
+                    <p className="text-sm font-semibold text-primary/80">
+                      {isGeminiConfigured() ? "Powered by Google Gemini 2.5 AI" : "Powered by VirtueYatra NLP Engine"}
+                    </p>
+                  </div>
                 </div>
                 
                 <p className="text-center text-muted-foreground text-lg">
