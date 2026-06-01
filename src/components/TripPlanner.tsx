@@ -82,35 +82,65 @@ const TripPlanner = () => {
       // Fallback NLP parsing so the demo works even without the python backend running!
       const msg = chatInput.toLowerCase();
       
+      // 1. Flexible Budget Parsing
       let budget = "moderate";
-      if (msg.includes("luxury")) budget = "luxury";
-      if (msg.includes("premium")) budget = "premium";
-      if (msg.includes("cheap") || msg.includes("budget")) budget = "budget";
+      if (msg.match(/luxury|expensive|high-end|lavish/i)) budget = "luxury";
+      else if (msg.match(/premium|first class/i)) budget = "premium";
+      else if (msg.match(/cheap|budget|affordable|low cost|backpacker/i)) budget = "budget";
       
+      // 2. Flexible Days Parsing
       let days = 3;
-      const match = msg.match(/(\d+)\s*day/);
-      if (match) days = parseInt(match[1]);
+      const daysMatch = msg.match(/(\d+)\s*(?:day|week|month)/i);
+      if (daysMatch) {
+        if (msg.includes("week")) days = parseInt(daysMatch[1]) * 7;
+        else if (msg.includes("month")) days = parseInt(daysMatch[1]) * 30;
+        else days = parseInt(daysMatch[1]);
+      }
       
+      // 3. Smart Destination Extraction (Regex Context + Fallbacks)
       let dest = "South India";
-      if (msg.includes("kerala")) dest = "Kerala";
-      if (msg.includes("ooty")) dest = "Ooty";
-      if (msg.includes("goa")) dest = "Goa";
-      if (msg.includes("delhi")) dest = "New Delhi";
+      const destMatch = chatInput.match(/(?:trip to|visit|travel to|go to|explore|tour of|in)\s+([a-zA-Z\s]+?)(?=\s+for|\s+with|\s+and|\s+to|\.|,|$)/i);
+      if (destMatch && destMatch[1].trim().length > 2) {
+        dest = destMatch[1].trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      } else {
+        const common = ["kerala", "ooty", "goa", "delhi", "mumbai", "bangalore", "chennai", "jaipur", "agra", "bali", "paris", "london", "dubai", "singapore", "manali", "shimla"];
+        for (const city of common) {
+          if (msg.includes(city)) {
+            dest = city.charAt(0).toUpperCase() + city.slice(1);
+            if (dest === "Delhi") dest = "New Delhi";
+            break;
+          }
+        }
+      }
       
+      // 4. Flexible Interest Synonyms Mapping
       const foundInterests: string[] = [];
-      const options = ["Adventure", "Beach", "Culture", "Wildlife", "Photography", "Food", "Hiking", "Relaxation", "Shopping", "History"];
-      options.forEach(opt => {
-        if (msg.includes(opt.toLowerCase())) foundInterests.push(opt);
+      const interestMap: Record<string, string[]> = {
+        "Adventure": ["adventure", "trek", "hike", "sports", "thrill", "mountain", "extreme"],
+        "Beach": ["beach", "sea", "ocean", "coast", "surf", "party", "sand"],
+        "Culture": ["culture", "temple", "tradition", "heritage", "art", "museum", "local"],
+        "Wildlife": ["wildlife", "animal", "safari", "nature", "forest", "zoo", "jungle", "birds"],
+        "Photography": ["photo", "camera", "scenic", "view", "nature", "landscape", "picturesque"],
+        "Food": ["food", "eat", "culinary", "restaurant", "taste", "dining", "cuisine", "street food"],
+        "Hiking": ["hike", "trek", "walk", "mountain", "trail"],
+        "Relaxation": ["relax", "spa", "chill", "peace", "calm", "resort", "luxury", "massage", "quiet"],
+        "Shopping": ["shop", "buy", "market", "mall", "souvenir", "clothes"],
+        "History": ["history", "monument", "fort", "palace", "ruin", "ancient", "architecture"]
+      };
+
+      Object.entries(interestMap).forEach(([uiTag, keywords]) => {
+        if (keywords.some(kw => msg.includes(kw))) {
+          foundInterests.push(uiTag);
+        }
       });
-      // Semantic fallback mappings
-      if (msg.includes("nature")) foundInterests.push("Wildlife", "Photography");
-      if (msg.includes("party")) foundInterests.push("Beach", "Relaxation");
+      
+      const uniqueInterests = Array.from(new Set(foundInterests));
       
       applyAutofillData({
         destination: dest,
         budget,
-        days,
-        interests: foundInterests
+        days: Math.min(days, 30), // cap at 30 days
+        interests: uniqueInterests
       });
     } finally {
       setChatLoading(false);
