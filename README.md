@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# VirtueYatra: AI Agent-Driven Travel Planner
 
-## Project info
+VirtueYatra is a comprehensive travel planning web application powered by a sophisticated AI Agent Architecture. Unlike standard CRUD applications, VirtueYatra leverages an intelligent backend to generate optimal, constraint-satisfying, and risk-adjusted itineraries tailored to user preferences.
 
-**URL**: https://lovable.dev/projects/d7892e1b-d0f7-40c4-b3f8-3ae3c0206050
+## 🧠 AI Agent Architecture (Syllabus Mapping)
 
-## How can I edit this code?
+This project strictly implements a PEAS-based Agent Architecture. The backend is designed as a pipeline of intelligent modules mapping directly to the following Course Outcomes (COs):
 
-There are several ways of editing your application.
+* **CO1: Agent Model (`backend/agents/travel_agent.py`)**
+  * Implements a central Agent Controller that coordinates the user's travel state (budget, dates, interests) and routes it through the reasoning engines.
+* **CO2: Search Algorithms (`backend/search/astar.py`)**
+  * Utilizes the **A* (A-Star) Search** algorithm to discover the most efficient routing sequences based on heuristics like cost and time.
+* **CO3: Constraint Satisfaction Problem (`backend/csp/solver.py`)**
+  * Solves scheduling and budget constraints via **Backtracking CSP**, ensuring no locations are repeated and the total budget is respected.
+* **CO4: Decision Engine (`backend/decision/utility.py`)**
+  * Computes mathematical **Utility Scores** to maximize the user's weighted interests (Adventure, Luxury, Culture) minus cost penalties.
+* **CO5: Bayesian Network (`backend/probabilistic/bayes.py`)**
+  * Applies a **Bayesian Probabilistic Model** to evaluate real-world uncertainties (like weather causing unexpected crowds) and adjusts destination viability dynamically.
+* **CO6: Hybrid AI System (`backend/main.py`)**
+  * Connects the React Frontend to the FastAPI AI pipeline, demonstrating a robust, hybrid intelligence system over a REST API.
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d7892e1b-d0f7-40c4-b3f8-3ae3c0206050) and start prompting.
+## 🚀 Killer Feature: Explainable AI
+The frontend features an **"Explain Plan"** module. Users can click this button next to any generated itinerary day to reveal the exact reasoning, agent logs, constraints evaluated, and utility probabilities that the AI used to make that specific decision.
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🛠️ Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+* **Frontend:** React, TypeScript, Vite, Tailwind CSS, shadcn-ui
+* **Backend:** Python, FastAPI, Uvicorn
+* **Database / Auth:** Supabase
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 💻 Running the Project Locally
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+To run this project, you need to start both the Python backend and the React frontend simultaneously.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 1. Start the AI Backend (Python)
+Ensure you have Python installed. From the root directory:
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\activate      # On Windows
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+*The API will be available at `http://localhost:8000`*
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 2. Start the Frontend (React)
+Open a new terminal window. From the root directory:
+```powershell
+npm install
 npm run dev
 ```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/d7892e1b-d0f7-40c4-b3f8-3ae3c0206050) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+*The web app will be available at `http://localhost:8080` (or `5173` depending on your Vite config)*
