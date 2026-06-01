@@ -1,28 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import Map, { Marker, Popup, Source, Layer, MapRef } from "react-map-gl/maplibre";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Search, Navigation, BellRing, Loader2, Bell, BellOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Fix default marker icons (Leaflet + bundlers issue)
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-const userIcon = L.divIcon({
-  className: "user-loc-icon",
-  html: `<div style="width:18px;height:18px;border-radius:9999px;background:hsl(var(--primary));box-shadow:0 0 0 6px hsla(var(--primary)/0.25);border:2px solid white;"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
 
 interface LatLng { lat: number; lng: number; }
 
@@ -37,15 +21,29 @@ const haversine = (a: LatLng, b: LatLng) => {
   return 2 * R * Math.asin(Math.sqrt(s));
 };
 
-const FlyTo = ({ pos }: { pos: LatLng | null }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (pos) map.flyTo([pos.lat, pos.lng], 14, { duration: 1.2 });
-  }, [pos, map]);
-  return null;
+const generateCircleGeojson = (center: LatLng, radiusInMeters: number) => {
+  const points = 64;
+  const coords = [];
+  const km = radiusInMeters / 1000;
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    const dy = km * Math.cos(theta);
+    const dx = km * Math.sin(theta);
+    const lat = center.lat + (dy / 110.574);
+    const lng = center.lng + (dx / (111.320 * Math.cos(center.lat * Math.PI / 180)));
+    coords.push([lng, lat]);
+  }
+  coords.push(coords[0]);
+  return {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [coords]
+    }
+  };
 };
 
-// Simple alarm using WebAudio (no asset needed)
 const playAlarm = () => {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -69,8 +67,28 @@ const playAlarm = () => {
   }
 };
 
+const MAP_STYLE = {
+  version: 8 as const,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap Contributors"
+    }
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm"
+    }
+  ]
+};
+
 const TripMap = () => {
   const { toast } = useToast();
+  const mapRef = useRef<MapRef>(null);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [destination, setDestination] = useState<(LatLng & { label: string }) | null>(null);
@@ -78,10 +96,9 @@ const TripMap = () => {
   const [tracking, setTracking] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [alertsOn, setAlertsOn] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(true);
   const watchId = useRef<number | null>(null);
   const alertedRef = useRef(false);
-
-  const center: [number, number] = [20.5937, 78.9629]; // India
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -97,9 +114,13 @@ const TripMap = () => {
         return;
       }
       const d = data[0];
-      setDestination({ lat: parseFloat(d.lat), lng: parseFloat(d.lon), label: d.display_name });
+      const newDest = { lat: parseFloat(d.lat), lng: parseFloat(d.lon), label: d.display_name };
+      setDestination(newDest);
+      setInfoOpen(true);
       alertedRef.current = false;
       toast({ title: "Destination set 📍", description: d.display_name.split(",").slice(0, 2).join(",") });
+      
+      mapRef.current?.flyTo({ center: [newDest.lng, newDest.lat], zoom: 14, duration: 2000 });
     } catch (e) {
       toast({ title: "Search failed", description: "Check your connection and try again.", variant: "destructive" });
     } finally {
@@ -124,7 +145,9 @@ const TripMap = () => {
       Notification.requestPermission();
     }
     watchId.current = navigator.geolocation.watchPosition(
-      (p) => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      (p) => {
+        setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+      },
       (err) => {
         toast({ title: "Location error", description: err.message, variant: "destructive" });
         stopTracking();
@@ -137,7 +160,6 @@ const TripMap = () => {
 
   useEffect(() => () => stopTracking(), [stopTracking]);
 
-  // Distance + proximity alert
   useEffect(() => {
     if (!destination || !userPos) return;
     const d = haversine(userPos, destination);
@@ -156,9 +178,13 @@ const TripMap = () => {
         });
       }
     }
-    // Reset alert if user moves far away again
     if (d > ALERT_RADIUS_M * 2) alertedRef.current = false;
   }, [userPos, destination, alertsOn, toast]);
+
+  const circleGeojson = useMemo(() => {
+    if (!destination) return null;
+    return generateCircleGeojson(destination, ALERT_RADIUS_M);
+  }, [destination]);
 
   return (
     <section id="map" className="py-20 bg-gradient-to-b from-background to-muted/30">
@@ -222,31 +248,68 @@ const TripMap = () => {
             </div>
           )}
 
-          <div className="h-[500px] w-full">
-            <MapContainer center={center} zoom={5} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png"
-              />
+          <div className="h-[500px] w-full relative">
+            <Map
+              ref={mapRef}
+              initialViewState={{
+                longitude: 78.9629,
+                latitude: 20.5937,
+                zoom: 5
+              }}
+              mapStyle={MAP_STYLE as any}
+            >
               {destination && (
-                <>
-                  <Marker position={[destination.lat, destination.lng]}>
-                    <Popup>{destination.label}</Popup>
-                  </Marker>
-                  <Circle
-                    center={[destination.lat, destination.lng]}
-                    radius={ALERT_RADIUS_M}
-                    pathOptions={{ color: "hsl(var(--secondary))", fillColor: "hsl(var(--secondary))", fillOpacity: 0.15 }}
-                  />
-                  <FlyTo pos={destination} />
-                </>
-              )}
-              {userPos && (
-                <Marker position={[userPos.lat, userPos.lng]} icon={userIcon}>
-                  <Popup>You are here</Popup>
+                <Marker 
+                    longitude={destination.lng} 
+                    latitude={destination.lat} 
+                    onClick={e => {
+                        e.originalEvent.stopPropagation();
+                        setInfoOpen(true);
+                    }}
+                >
+                  <div className="w-5 h-5 bg-red-500 rounded-full border-2 border-white shadow-lg cursor-pointer"></div>
                 </Marker>
               )}
-            </MapContainer>
+              {destination && infoOpen && (
+                <Popup
+                  longitude={destination.lng}
+                  latitude={destination.lat}
+                  anchor="bottom"
+                  onClose={() => setInfoOpen(false)}
+                  offset={15}
+                >
+                  <div className="text-black">{destination.label}</div>
+                </Popup>
+              )}
+              
+              {circleGeojson && (
+                <Source id="alert-circle" type="geojson" data={circleGeojson}>
+                  <Layer 
+                    id="alert-circle-fill" 
+                    type="fill" 
+                    paint={{
+                      'fill-color': 'hsl(var(--secondary))',
+                      'fill-opacity': 0.15
+                    }} 
+                  />
+                  <Layer 
+                    id="alert-circle-outline" 
+                    type="line" 
+                    paint={{
+                      'line-color': 'hsl(var(--secondary))',
+                      'line-width': 2,
+                      'line-opacity': 0.8
+                    }} 
+                  />
+                </Source>
+              )}
+
+              {userPos && (
+                <Marker longitude={userPos.lng} latitude={userPos.lat}>
+                  <div className="w-[18px] h-[18px] rounded-full bg-primary shadow-[0_0_0_6px_hsla(var(--primary)/0.25)] border-2 border-white" />
+                </Marker>
+              )}
+            </Map>
           </div>
         </Card>
       </div>

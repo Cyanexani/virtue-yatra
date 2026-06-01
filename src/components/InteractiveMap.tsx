@@ -1,19 +1,6 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { useEffect, useState } from 'react';
-import L from 'leaflet';
-
-// Fix for default marker icon in react-leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
+import { useEffect, useState, useMemo } from 'react';
+import Map, { Marker, Source, Layer, Popup } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface AIItineraryDay {
   day: string;
@@ -27,67 +14,115 @@ interface InteractiveMapProps {
   itinerary: AIItineraryDay[];
 }
 
-// Rough coordinates for our mock cities
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  "Ooty": [11.4102, 76.6950],
-  "Coonoor": [11.3530, 76.7959],
-  "Mysore": [12.2958, 76.6394],
-  "Kodaikanal": [10.2381, 77.4892],
-  "New Delhi": [28.6139, 77.2090], // Fallback/Default
+const CITY_COORDINATES: Record<string, {lat: number, lng: number}> = {
+  "Ooty": {lat: 11.4102, lng: 76.6950},
+  "Coonoor": {lat: 11.3530, lng: 76.7959},
+  "Mysore": {lat: 12.2958, lng: 76.6394},
+  "Kodaikanal": {lat: 10.2381, lng: 77.4892},
+  "New Delhi": {lat: 28.6139, lng: 77.2090}, // Fallback/Default
+};
+
+const MAP_STYLE = {
+  version: 8 as const,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap Contributors"
+    }
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm"
+    }
+  ]
 };
 
 export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
-  const [mapCenter, setMapCenter] = useState<[number, number]>([11.4102, 76.6950]);
-  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{lat: number, lng: number}[]>([]);
+  const [selectedPin, setSelectedPin] = useState<number | null>(null);
 
   useEffect(() => {
     if (itinerary && itinerary.length > 0) {
-      // Find coordinates for each destination in the itinerary
-      const coords: [number, number][] = itinerary.map(item => {
+      const coords = itinerary.map(item => {
         return CITY_COORDINATES[item.destination] || CITY_COORDINATES["New Delhi"];
       });
-      
       setRouteCoordinates(coords);
-      if (coords.length > 0) {
-        setMapCenter(coords[0]); // Center on the first destination
-      }
     }
   }, [itinerary]);
 
-  if (!itinerary || itinerary.length === 0) return null;
+  const routeGeojson = useMemo(() => {
+    return {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'LineString' as const,
+        coordinates: routeCoordinates.map(c => [c.lng, c.lat])
+      }
+    };
+  }, [routeCoordinates]);
+
+  if (!itinerary || itinerary.length === 0 || routeCoordinates.length === 0) return null;
 
   return (
     <div className="w-full h-64 md:h-96 rounded-xl overflow-hidden border border-border/50 shadow-md mb-6 relative z-0">
-      <MapContainer 
-        center={mapCenter} 
-        zoom={7} 
-        scrollWheelZoom={false}
-        className="w-full h-full z-0"
+      <Map
+        initialViewState={{
+          longitude: routeCoordinates[0].lng,
+          latitude: routeCoordinates[0].lat,
+          zoom: 7
+        }}
+        mapStyle={MAP_STYLE as any}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
         {routeCoordinates.map((position, idx) => (
-          <Marker key={idx} position={position}>
-            <Popup>
-              <strong>{itinerary[idx].day.replace("_", " ")}</strong><br />
-              {itinerary[idx].destination}
-            </Popup>
+          <Marker 
+            key={idx} 
+            longitude={position.lng} 
+            latitude={position.lat}
+            onClick={e => {
+                e.originalEvent.stopPropagation();
+                setSelectedPin(idx);
+            }}
+          >
+            <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform">
+              {idx + 1}
+            </div>
           </Marker>
         ))}
 
-        {routeCoordinates.length > 1 && (
-          <Polyline 
-            positions={routeCoordinates} 
-            color="hsl(var(--primary))" 
-            weight={4} 
-            dashArray="10, 10" 
-            opacity={0.7} 
-          />
+        {selectedPin !== null && (
+          <Popup
+            longitude={routeCoordinates[selectedPin].lng}
+            latitude={routeCoordinates[selectedPin].lat}
+            anchor="bottom"
+            onClose={() => setSelectedPin(null)}
+            closeButton={false}
+            offset={15}
+          >
+            <div className="text-black">
+              <strong>{itinerary[selectedPin].day.replace("_", " ")}</strong><br />
+              {itinerary[selectedPin].destination}
+            </div>
+          </Popup>
         )}
-      </MapContainer>
+
+        {routeCoordinates.length > 1 && (
+          <Source id="route" type="geojson" data={routeGeojson}>
+            <Layer 
+              id="route-line" 
+              type="line" 
+              paint={{
+                'line-color': '#2563eb',
+                'line-width': 4,
+                'line-dasharray': [2, 2]
+              }} 
+            />
+          </Source>
+        )}
+      </Map>
     </div>
   );
 };
