@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -51,8 +51,46 @@ const TripPlanner = () => {
     travelers: "1",
     budget: "",
     interests: [] as string[],
+    interests: [] as string[],
     specialRequests: "",
   });
+
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleMagicAutofill = async () => {
+    if (!chatInput) return;
+    setChatLoading(true);
+    try {
+      const resp = await fetch((import.meta.env.VITE_API_URL || "http://localhost:8000") + "/parse-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: chatInput })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        
+        const start = new Date();
+        const end = new Date();
+        end.setDate(start.getDate() + (data.days || 3));
+        
+        setFormData(prev => ({
+          ...prev,
+          destination: data.destination || prev.destination,
+          budget: data.budget || prev.budget,
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+          interests: data.interests && data.interests.length > 0 ? data.interests : prev.interests,
+        }));
+        toast({ title: "Magic Autofill Complete!", description: "We extracted your trip details." });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Autofill failed", variant: "destructive" });
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const interestOptions = [
     "Adventure", "Beach", "Culture", "Wildlife", "Photography",
@@ -401,6 +439,24 @@ const TripPlanner = () => {
           ) : (
             /* Trip Form */
             <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+              <div className="mb-8 p-6 rounded-xl bg-gradient-to-r from-primary/10 to-travel-ocean/10 border border-primary/20">
+                <Label className="flex items-center gap-2 text-lg mb-3">
+                  <Wand2 className="w-5 h-5 text-primary" />
+                  AI Magic Autofill
+                </Label>
+                <div className="flex gap-3">
+                  <Input 
+                    placeholder='Try "I want a 4 day luxury trip to Kerala for adventure"' 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleMagicAutofill()}
+                    className="flex-1 bg-background border-primary/30"
+                  />
+                  <Button onClick={handleMagicAutofill} disabled={chatLoading} className="bg-primary hover:bg-primary/90 text-white">
+                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Autofill Form"}
+                  </Button>
+                </div>
+              </div>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Destination and Dates */}
                 <div className="grid md:grid-cols-3 gap-6">

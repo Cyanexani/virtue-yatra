@@ -34,6 +34,9 @@ class TripRequest(BaseModel):
     days: int
     interests: List[str]
 
+class ChatRequest(BaseModel):
+    message: str
+
 @app.post("/plan-trip")
 async def plan_trip(req: TripRequest):
     agent = TravelAgent()
@@ -54,3 +57,42 @@ async def plan_trip(req: TripRequest):
             print(f"Supabase logging failed: {e}")
             
     return result
+
+@app.post("/parse-chat")
+async def parse_chat(req: ChatRequest):
+    msg = req.message.lower()
+    
+    # 1. Parse Budget
+    budget_level = "moderate"
+    if "luxury" in msg:
+        budget_level = "luxury"
+    elif "premium" in msg:
+        budget_level = "premium"
+    elif "cheap" in msg or "budget" in msg:
+        budget_level = "budget"
+        
+    # 2. Parse Days (very simple regex/extraction)
+    import re
+    days = 3
+    day_match = re.search(r'(\d+)\s*day', msg)
+    if day_match:
+        days = int(day_match.group(1))
+        
+    # 3. Parse Interests
+    interests = []
+    for i in ["adventure", "culture", "nature", "luxury"]:
+        if i in msg:
+            interests.append(i.capitalize())
+            
+    # 4. Destination fallback
+    dest = "South India"
+    if "kerala" in msg: dest = "Kerala"
+    elif "ooty" in msg: dest = "Ooty"
+    elif "north" in msg: dest = "North India"
+    
+    return {
+        "destination": dest,
+        "budget": budget_level,
+        "days": days,
+        "interests": interests
+    }

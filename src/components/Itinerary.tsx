@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { MapPin, Lightbulb, Loader2, Sparkles, HelpCircle, Download, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ExplainPlanModal } from "./ExplainPlanModal";
 import { InteractiveMap } from "./InteractiveMap";
@@ -39,6 +40,7 @@ const ITINERARY_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/pla
 const Itinerary = ({ destination, startDate, endDate, interests, travelers, budget, specialRequests }: ItineraryProps) => {
   const { t } = useLanguage();
   const [aiData, setAiData] = useState<AIResponse | null>(null);
+  const [localItinerary, setLocalItinerary] = useState<AIItineraryDay[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   
@@ -65,11 +67,26 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
     let text = `🌟 *My VirtueYatra AI Trip Plan* 🌟\n\n`;
     text += `📍 Destination: ${destination}\n`;
     text += `💰 Total Budget: ₹${aiData.total_cost}\n\n`;
-    aiData.itinerary.forEach(item => {
+    localItinerary.forEach(item => {
         text += `🔹 *${item.day.replace("_", " ")}*: ${item.destination}\n`;
     });
     text += `\n🚀 Plan your own trip at https://virtue-yatra.vercel.app`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    const items = Array.from(localItinerary);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    // Update the "Day X" labels to stay sequential
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      day: `Day_${index + 1}`
+    }));
+    
+    setLocalItinerary(updatedItems);
   };
 
   useEffect(() => {
@@ -94,14 +111,16 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
           body: JSON.stringify({ 
             destination, 
             budget: numericBudget, 
-            // We cap at 4 days since the CSP constraints only have 4 mock cities with unique constraints.
             days: Math.min(dayCount, 4), 
             interests 
           }),
         });
         if (!resp.ok) throw new Error("AI Agent unavailable. Is the Python backend running?");
         const data = await resp.json();
-        if (!cancelled) setAiData(data);
+        if (!cancelled) {
+          setAiData(data);
+          setLocalItinerary(data.itinerary || []);
+        }
       } catch (e) {
         if (!cancelled) setAiError(e instanceof Error ? e.message : "Failed to load AI itinerary");
       } finally {
@@ -166,41 +185,56 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
              </div>
           </div>
           
-          <InteractiveMap itinerary={aiData.itinerary} />
+          <InteractiveMap itinerary={localItinerary} />
           
-          <div className="space-y-6">
-            {aiData.itinerary.map((dayItem, idx) => {
-              return (
-                <div key={idx} className="border-l-2 border-primary/30 pl-6 pb-4 relative">
-                  <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-primary" />
-                  
-                  <div className="flex items-center justify-between gap-2 mb-4 pt-1">
-                    <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                        {dayItem.day.replace("_", " ")}
-                        </span>
-                        <h4 className="font-bold text-xl">{dayItem.destination}</h4>
-                    </div>
-                    
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 gap-1.5 shadow-sm hover:border-primary/50"
-                        onClick={() => setSelectedDayInfo(dayItem)}
-                    >
-                        <HelpCircle className="w-3.5 h-3.5 text-primary" />
-                        Explain Plan
-                    </Button>
-                  </div>
-                  
-                  <div className="flex gap-6 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg border border-border/30">
-                     <p><strong>Cost Constraint:</strong> ₹{dayItem.cost}</p>
-                     <p><strong>Utility Evaluated:</strong> <span className="text-primary font-medium">{dayItem.utility_score}</span></p>
-                  </div>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="itinerary-list">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-6 mt-6">
+                  {localItinerary.map((dayItem, idx) => (
+                    <Draggable key={dayItem.destination + idx} draggableId={dayItem.destination + idx} index={idx}>
+                      {(provided) => (
+                        <div 
+                          ref={provided.innerRef} 
+                          {...provided.draggableProps} 
+                          {...provided.dragHandleProps}
+                          className="border-l-2 border-primary/30 pl-6 pb-4 relative bg-card p-4 rounded-lg hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing border-b border-border/50"
+                        >
+                          <div className="absolute -left-[9px] top-4 w-4 h-4 rounded-full bg-primary" />
+                          
+                          <div className="flex items-center justify-between gap-2 mb-4">
+                            <div className="flex items-center gap-3">
+                                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                                {dayItem.day.replace("_", " ")}
+                                </span>
+                                <h4 className="font-bold text-xl">{dayItem.destination}</h4>
+                            </div>
+                            
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 gap-1.5 shadow-sm hover:border-primary/50"
+                                onClick={() => setSelectedDayInfo(dayItem)}
+                                data-html2canvas-ignore
+                            >
+                                <HelpCircle className="w-3.5 h-3.5 text-primary" />
+                                Explain Plan
+                            </Button>
+                          </div>
+                          
+                          <div className="flex gap-6 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg border border-border/30">
+                             <p><strong>Cost Constraint:</strong> ₹{dayItem.cost}</p>
+                             <p><strong>Utility Evaluated:</strong> <span className="text-primary font-medium">{dayItem.utility_score}</span></p>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </Droppable>
+          </DragDropContext>
           
           {selectedDayInfo && (
             <ExplainPlanModal 
