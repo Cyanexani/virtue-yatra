@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { MapPin, Lightbulb, Loader2, Sparkles, HelpCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ExplainPlanModal } from "./ExplainPlanModal";
+import { InteractiveMap } from "./InteractiveMap";
 import { Button } from "@/components/ui/button";
 
 interface ItineraryProps {
@@ -126,6 +127,8 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
                <p className="font-bold text-lg text-primary">{aiData.total_utility}</p>
              </div>
           </div>
+          
+          <InteractiveMap itinerary={aiData.itinerary} />
           
           <div className="space-y-6">
             {aiData.itinerary.map((dayItem, idx) => {
