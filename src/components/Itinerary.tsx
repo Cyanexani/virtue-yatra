@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
-import { MapPin, Lightbulb, Loader2, Sparkles, HelpCircle } from "lucide-react";
+import { MapPin, Lightbulb, Loader2, Sparkles, HelpCircle, Download, Share2 } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ExplainPlanModal } from "./ExplainPlanModal";
 import { InteractiveMap } from "./InteractiveMap";
@@ -41,6 +43,34 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
   const [aiError, setAiError] = useState<string | null>(null);
   
   const [selectedDayInfo, setSelectedDayInfo] = useState<AIItineraryDay | null>(null);
+  const itineraryRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    if (!itineraryRef.current) return;
+    try {
+      const canvas = await html2canvas(itineraryRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save("VirtueYatra_Itinerary.pdf");
+    } catch (e) {
+      console.error("Failed to generate PDF", e);
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!aiData?.itinerary) return;
+    let text = `🌟 *My VirtueYatra AI Trip Plan* 🌟\n\n`;
+    text += `📍 Destination: ${destination}\n`;
+    text += `💰 Total Budget: ₹${aiData.total_cost}\n\n`;
+    aiData.itinerary.forEach(item => {
+        text += `🔹 *${item.day.replace("_", " ")}*: ${item.destination}\n`;
+    });
+    text += `\n🚀 Plan your own trip at https://virtue-yatra.vercel.app`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -116,8 +146,8 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
       )}
 
       {aiData?.itinerary && (
-        <>
-          <div className="flex justify-between items-center mb-6 bg-muted/30 p-4 rounded-lg">
+        <div ref={itineraryRef} className="p-2 bg-background rounded-lg">
+          <div className="flex justify-between items-center mb-6 bg-muted/30 p-4 rounded-lg flex-wrap gap-4">
              <div>
                <p className="text-sm text-muted-foreground">Total Budget Used</p>
                <p className="font-bold text-lg">₹{aiData.total_cost}</p>
@@ -125,6 +155,14 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
              <div>
                <p className="text-sm text-muted-foreground">Overall Utility Score</p>
                <p className="font-bold text-lg text-primary">{aiData.total_utility}</p>
+             </div>
+             <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                 <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none" data-html2canvas-ignore>
+                     <Download className="w-4 h-4" /> PDF
+                 </Button>
+                 <Button onClick={handleShareWhatsApp} variant="default" size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none" data-html2canvas-ignore>
+                     <Share2 className="w-4 h-4" /> WhatsApp
+                 </Button>
              </div>
           </div>
           
@@ -173,7 +211,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
               logs={aiData.logs || []}
             />
           )}
-        </>
+        </div>
       )}
 
       {/* Travel Tips */}
