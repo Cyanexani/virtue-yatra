@@ -31,7 +31,7 @@ interface AIResponse {
   error?: string;
 }
 
-const ITINERARY_URL = "http://localhost:8000/plan-trip";
+const ITINERARY_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/plan-trip";
 
 const Itinerary = ({ destination, startDate, endDate, interests, travelers, budget, specialRequests }: ItineraryProps) => {
   const { t } = useLanguage();
