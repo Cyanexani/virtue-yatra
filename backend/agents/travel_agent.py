@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 import sys
 import os
+import json
+import urllib.request
 
 # Add parent directory to path to allow importing sibling modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -78,9 +80,34 @@ class TravelAgent:
         final_itinerary = []
         total_utility = 0
         
-        weather_forecast = "Sunny" # Mocked for example
+        # Coordinates for Open-Meteo weather API
+        coords = {
+            "Ooty": (11.4102, 76.6950),
+            "Coonoor": (11.3530, 76.7959),
+            "Mysore": (12.2958, 76.6394),
+            "Kodaikanal": (10.2381, 77.4892)
+        }
+        
+        self.log("Real-World API", "Fetching live weather data for chosen destinations from Open-Meteo...")
         
         for day, dest in solution.items():
+            city_name = dest["name"]
+            weather_forecast = "Sunny" # fallback
+            try:
+                lat, lon = coords.get(city_name, (28.6139, 77.2090))
+                url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+                req = urllib.request.Request(url, headers={'User-Agent': 'VirtueYatra/1.0'})
+                with urllib.request.urlopen(req, timeout=3) as response:
+                    data = json.loads(response.read().decode())
+                    wcode = data.get("current_weather", {}).get("weathercode", 0)
+                    # WMO Codes: >50 usually means rain/precipitation
+                    if wcode >= 51:
+                        weather_forecast = "Rainy"
+                    else:
+                        weather_forecast = "Sunny"
+            except Exception as e:
+                self.log("API Warning", f"Could not fetch weather for {city_name}, falling back to Sunny.")
+
             base_score = calculate_utility(dest, preferences, dest["cost"])
             adjusted_score = self.bayes.adjust_score(base_score * 100, weather_forecast)
             total_utility += adjusted_score
@@ -90,10 +117,10 @@ class TravelAgent:
                 "destination": dest["name"],
                 "cost": dest["cost"],
                 "utility_score": round(adjusted_score, 2),
-                "reasoning": f"Chosen due to high utility. Weather predicted {weather_forecast}. Confidence: 87%"
+                "reasoning": f"Chosen due to high utility. Live Weather: {weather_forecast}."
             })
             
-            self.log("Decision Engine", f"Evaluated {dest['name']} with Utility: {adjusted_score:.2f}")
+            self.log("Decision Engine", f"Evaluated {dest['name']} with Utility: {adjusted_score:.2f} | Weather: {weather_forecast}")
 
         return {
             "itinerary": final_itinerary,
