@@ -15,7 +15,7 @@ const VirtualWorld = () => {
       nameHi: "ताज महल, आगरा",
       nameTe: "తాజ్ మహల్, ఆగ్రా",
       thumbnail: "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=400",
-      videoUrl: "https://www.youtube.com/embed/49HTIoCccDY?autoplay=1"
+      videoUrl: "https://www.youtube.com/embed/bs5Kxflg_Jg?autoplay=1"
     },
     {
       id: 2,
@@ -23,7 +23,7 @@ const VirtualWorld = () => {
       nameHi: "वाराणसी घाट",
       nameTe: "వారణాసి ఘాట్లు",
       thumbnail: "https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=400",
-      videoUrl: "https://www.youtube.com/embed/gYO1uk7vIcc?autoplay=1"
+      videoUrl: "https://www.youtube.com/embed/vYqMUehWH-g?autoplay=1"
     },
     {
       id: 3,
@@ -31,7 +31,7 @@ const VirtualWorld = () => {
       nameHi: "जयपुर सिटी पैलेस",
       nameTe: "జైపూర్ సిటీ ప్యాలెస్",
       thumbnail: "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=400",
-      videoUrl: "https://www.youtube.com/embed/gYO1uk7vIcc?autoplay=1"
+      videoUrl: "https://www.youtube.com/embed/8Am86otuqpQ?autoplay=1"
     },
     {
       id: 4,
@@ -39,7 +39,7 @@ const VirtualWorld = () => {
       nameHi: "केरल बैकवाटर्स",
       nameTe: "కేరళ బ్యాక్‌వాటర్స్",
       thumbnail: "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=400",
-      videoUrl: "https://www.youtube.com/embed/LXb3EKWsInQ?autoplay=1"
+      videoUrl: "https://www.youtube.com/embed/jQrIEP_G-T8?autoplay=1"
     },
     {
       id: 5,
@@ -47,7 +47,7 @@ const VirtualWorld = () => {
       nameHi: "लद्दाख पर्वत",
       nameTe: "లడఖ్ పర్వతాలు",
       thumbnail: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=400",
-      videoUrl: "https://www.youtube.com/embed/mQhXjD6J9Ik?autoplay=1"
+      videoUrl: "https://www.youtube.com/embed/YTzvifuz_Qg?autoplay=1"
     }
   ];
 
