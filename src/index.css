@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 42 45% 97%;
+    --foreground: 195 85% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 195 85% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 195 85% 12%;
+
+    --primary: 182 65% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 24 95% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 42 25% 92%;
+    --muted-foreground: 195 20% 45%;
+
+    --accent: 30 85% 65%;
+    --accent-foreground: 195 85% 12%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 42 20% 85%;
+    --input: 42 20% 85%;
+    --ring: 182 65% 45%;
+
+    --radius: 1rem;
+
+    /* VirtueYatra Custom Colors */
+    --travel-teal: 182 65% 45%;
+    --travel-coral: 24 95% 60%;
+    --travel-sand: 42 45% 88%;
+    --travel-earth: 30 30% 35%;
+    --travel-ocean: 195 85% 35%;
+    
+    /* Glassmorphism */
+    --glass-bg: 0 0% 100% / 0.25;
+    --glass-border: 0 0% 100% / 0.18;
+    
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(182 65% 45%) 0%, hsl(195 85% 35%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(24 95% 60%) 0%, hsl(30 85% 65%) 100%);
+    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(195 85% 12% / 0.6) 100%);
+    
+    /* Shadows */
+    --shadow-soft: 0 8px 32px hsl(182 65% 45% / 0.15);
+    --shadow-medium: 0 12px 48px hsl(182 65% 45% / 0.2);
+    --shadow-strong: 0 20px 60px hsl(195 85% 35% / 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --sidebar-background: 42 45% 97%;
+    --sidebar-foreground: 195 85% 12%;
+    --sidebar-primary: 182 65% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 42 25% 92%;
+    --sidebar-accent-foreground: 195 85% 12%;
+    --sidebar-border: 42 20% 85%;
+    --sidebar-ring: 182 65% 45%;
+  }
+
+  .dark {
+    --background: 195 85% 8%;
+    --foreground: 42 45% 97%;
+
+    --card: 195 75% 12%;
+    --card-foreground: 42 45% 97%;
+
+    --popover: 195 75% 12%;
+    --popover-foreground: 42 45% 97%;
+
+    --primary: 182 65% 55%;
+    --primary-foreground: 195 85% 8%;
+
+    --secondary: 24 95% 65%;
+    --secondary-foreground: 195 85% 8%;
+
+    --muted: 195 60% 18%;
+    --muted-foreground: 42 25% 70%;
+
+    --accent: 30 85% 65%;
+    --accent-foreground: 195 85% 8%;
+
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 42 45% 97%;
+
+    --border: 195 60% 20%;
+    --input: 195 60% 20%;
+    --ring: 182 65% 55%;
+    
+    --glass-bg: 195 75% 12% / 0.4;
+    --glass-border: 195 60% 20% / 0.3;
+    
+    --sidebar-background: 195 85% 8%;
+    --sidebar-foreground: 42 45% 97%;
+    --sidebar-primary: 182 65% 55%;
+    --sidebar-primary-foreground: 195 85% 8%;
+    --sidebar-accent: 195 60% 18%;
+    --sidebar-accent-foreground: 42 45% 97%;
+    --sidebar-border: 195 60% 20%;
+    --sidebar-ring: 182 65% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out forwards;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(182 65% 45%), hsl(195 85% 35%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
