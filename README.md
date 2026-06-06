@@ -6,18 +6,29 @@ VirtueYatra is a comprehensive travel planning web application powered by a soph
 
 This project strictly implements a PEAS-based Agent Architecture. The backend is designed as a pipeline of intelligent modules mapping directly to the following Course Outcomes (COs):
 
-* **CO1: Agent Model (`backend/agents/travel_agent.py`)**
-  * Implements a central Agent Controller that coordinates the user's travel state (budget, dates, interests) and routes it through the reasoning engines.
-* **CO2: Search Algorithms (`backend/search/astar.py`)**
-  * Utilizes the **A* (A-Star) Search** algorithm to discover the most efficient routing sequences based on heuristics like cost and time.
-* **CO3: Constraint Satisfaction Problem (`backend/csp/solver.py`)**
-  * Solves scheduling and budget constraints via **Backtracking CSP**, ensuring no locations are repeated and the total budget is respected.
-* **CO4: Decision Engine (`backend/decision/utility.py`)**
-  * Computes mathematical **Utility Scores** to maximize the user's weighted interests (Adventure, Luxury, Culture) minus cost penalties.
-* **CO5: Bayesian Network (`backend/probabilistic/bayes.py`)**
-  * Applies a **Bayesian Probabilistic Model** to evaluate real-world uncertainties (like weather causing unexpected crowds) and adjusts destination viability dynamically.
-* **CO6: Hybrid AI System (`backend/main.py`)**
-  * Connects the React Frontend to the FastAPI AI pipeline, demonstrating a robust, hybrid intelligence system over a REST API.
+* **CO1: Intelligent Agent & PEAS Modeling (`backend/agents/travel_agent.py`)**
+  * **Concepts Covered:** Rational Agents, PEAS (Performance measure, Environment, Actuators, Sensors) framework, Agent Types.
+  * **Application:** Implements a central Goal-Based Agent Controller that coordinates the user's travel state (budget, dates, interests). It perceives the environment (user inputs, live API data) and routes it through a pipeline of sequential reasoning engines to maximize the performance measure (trip utility).
+
+* **CO2: Uninformed & Informed Search Strategies (`backend/search/astar.py`)**
+  * **Concepts Covered:** State-Space Search, Heuristic Functions, Optimal Pathfinding, A* Search.
+  * **Application:** Utilizes the **A* (A-Star) Search** algorithm to navigate the combinatorial state-space of regional destinations. It calculates the most efficient routing sequences by applying cost and distance heuristics to prevent combinatorial explosion during itinerary generation.
+
+* **CO3: Constraint Satisfaction Problems (CSP) (`backend/csp/solver.py`)**
+  * **Concepts Covered:** Variables, Domains, Hard/Soft Constraints, Backtracking Search, Arc Consistency.
+  * **Application:** Formulates the trip scheduling as a strict CSP. It applies Backtracking Search with constraint propagation to ensure that hard constraints (e.g., total cost ≤ budget, no repeated cities) are strictly satisfied before passing viable sub-schedules to the decision engine.
+
+* **CO4: Utility Theory & Decision Making (`backend/decision/utility.py`)**
+  * **Concepts Covered:** Multi-Attribute Utility Theory (MAUT), Rational Preferences, Decision making under certainty.
+  * **Application:** Computes mathematical **Utility Scores** to quantify user satisfaction. It evaluates destinations by mapping user preferences (Adventure, Luxury, Culture) against destination attributes, subtracting weighted cost penalties to determine the mathematically optimal choice.
+
+* **CO5: Probabilistic Reasoning & Bayesian Networks (`backend/probabilistic/bayes.py`)**
+  * **Concepts Covered:** Uncertainty, Prior/Posterior Probabilities, Bayes' Theorem, Probabilistic inference.
+  * **Application:** Integrates real-time external sensors (Open-Meteo Weather API) to model environment uncertainty. It applies **Bayesian Probabilistic Inference** to update the posterior viability score of a destination based on new evidence (e.g., predicting how impending rain drastically reduces the utility of an outdoor adventure spot).
+
+* **CO6: Hybrid AI Systems & Knowledge Representation (`backend/main.py`)**
+  * **Concepts Covered:** Software Architecture of AI, Integration of Symbolic and Sub-Symbolic AI, API Design.
+  * **Application:** Serves as the overarching framework that connects the theoretical AI modules into a scalable Hybrid AI pipeline. It demonstrates the practical deployment of AI logic over a FastAPI REST interface, consuming Generative AI (LLM) parsing from the React frontend to complement the deterministic algorithms.
 
 ---
 
