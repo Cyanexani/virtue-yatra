@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Schema, Type } from "@google/generative-ai";
+import { GoogleGenerativeAI, Schema, SchemaType } from "@google/generative-ai";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -19,15 +19,15 @@ export const parseUserPrompt = async (prompt: string) => {
       temperature: 0.1,
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          destination: { type: Type.STRING, description: "The destination city or region requested. Default to 'South India' if vague." },
-          budget: { type: Type.STRING, enum: ["budget", "moderate", "luxury", "premium"] },
-          days: { type: Type.INTEGER, description: "The number of days for the trip. Convert weeks/months to days." },
+          destination: { type: SchemaType.STRING, description: "The destination city or region requested. Default to 'South India' if vague." },
+          budget: { type: SchemaType.STRING, enum: ["budget", "moderate", "luxury", "premium"] },
+          days: { type: SchemaType.INTEGER, description: "The number of days for the trip. Convert weeks/months to days." },
           interests: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.STRING,
+              type: SchemaType.STRING,
               enum: ["Adventure", "Beach", "Culture", "Wildlife", "Photography", "Food", "Hiking", "Relaxation", "Shopping", "History"]
             }
           }
@@ -53,25 +53,25 @@ export const generateItinerary = async (preferences: { destination: string; days
       temperature: 0.7,
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.ARRAY,
+        type: SchemaType.ARRAY,
         description: "List of daily itineraries.",
         items: {
-          type: Type.OBJECT,
+          type: SchemaType.OBJECT,
           properties: {
-            day: { type: Type.STRING, description: "Format: Day_X" },
-            destination: { type: Type.STRING, description: "The main city/region for the day." },
-            cost: { type: Type.INTEGER, description: "Estimated cost constraint for the day in INR." },
-            utility_score: { type: Type.NUMBER, description: "Utility score from 1 to 100 based on matching interests." },
-            reasoning: { type: Type.STRING, description: "Brief explanation of why this day is planned this way." },
+            day: { type: SchemaType.STRING, description: "Format: Day_X" },
+            destination: { type: SchemaType.STRING, description: "The main city/region for the day." },
+            cost: { type: SchemaType.INTEGER, description: "Estimated cost constraint for the day in INR." },
+            utility_score: { type: SchemaType.NUMBER, description: "Utility score from 1 to 100 based on matching interests." },
+            reasoning: { type: SchemaType.STRING, description: "Brief explanation of why this day is planned this way." },
             activities: {
-              type: Type.ARRAY,
+              type: SchemaType.ARRAY,
               items: {
-                type: Type.OBJECT,
+                type: SchemaType.OBJECT,
                 properties: {
-                  time: { type: Type.STRING, description: "Morning, Afternoon, or Evening" },
-                  spot: { type: Type.STRING, description: "Name of the specific place/activity." },
-                  type: { type: Type.STRING, description: "E.g., 'Popular', 'Underrated Spot', 'Leisure', 'Adventure'" },
-                  description: { type: Type.STRING, description: "Short, engaging description of the activity." }
+                  time: { type: SchemaType.STRING, description: "Morning, Afternoon, or Evening" },
+                  spot: { type: SchemaType.STRING, description: "Name of the specific place/activity." },
+                  type: { type: SchemaType.STRING, description: "E.g., 'Popular', 'Underrated Spot', 'Leisure', 'Adventure'" },
+                  description: { type: SchemaType.STRING, description: "Short, engaging description of the activity." }
                 },
                 required: ["time", "spot", "type", "description"]
               }
