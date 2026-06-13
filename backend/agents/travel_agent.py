@@ -32,6 +32,12 @@ class TravelAgent:
         self.logs = []
         self.log("Initialization", f"Received request for {request.days} days in {request.city} with budget {request.budget}")
         
+        # If the user requests a specific city (like Delhi, Goa, Paris), bypass the regional multi-city CSP 
+        # solver and let the frontend local mock handle it for a perfect single-city itinerary.
+        if request.city.lower() != "south india":
+            self.log("Fallback Triggered", f"{request.city} is a single-city request. Bypassing regional CSP solver.")
+            return {"error": "Use frontend single-city mock", "logs": self.logs}
+        
         # 1. Search Phase (A*)
         # Mocking available destinations in the region with associated activities
         destinations = [
@@ -119,6 +125,21 @@ class TravelAgent:
             return len(cities) == len(set(cities))
             
         csp.add_constraint(variables, unique_constraint)
+        
+        # Constraint: If the requested city is in our database, it MUST be the first day's destination.
+        # If it's not in the database, the solver will fail and fallback to the frontend mock generator.
+        valid_city_names = [d["name"].lower() for d in destinations]
+        if request.city.lower() in valid_city_names:
+            def start_city_constraint(assignment):
+                if "Day_1" in assignment:
+                    return assignment["Day_1"]["name"].lower() == request.city.lower()
+                return True
+            csp.add_constraint(variables, start_city_constraint)
+        else:
+            # Force failure so the frontend mock generator can handle custom cities like 'Paris' or 'Mumbai' perfectly.
+            def force_fail(assignment):
+                return False
+            csp.add_constraint(variables, force_fail)
         
         solution = csp.solve()
         

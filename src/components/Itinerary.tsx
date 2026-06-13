@@ -137,6 +137,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
           });
           if (!resp.ok) throw new Error("AI Agent unavailable. Is the Python backend running?");
           data = await resp.json();
+          if (data.error) throw new Error(data.error);
         }
 
         if (!cancelled) {
