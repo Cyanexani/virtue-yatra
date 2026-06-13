@@ -200,9 +200,35 @@ class TravelAgent:
             
             self.log("Decision Engine", f"Evaluated {dest['name']} with Utility: {adjusted_score:.2f} | Weather: {weather_forecast}")
 
+        total_cost_val = sum(dest["cost"] for dest in solution.values())
         return {
             "itinerary": final_itinerary,
             "total_utility": round(total_utility, 2),
-            "total_cost": sum(dest["cost"] for dest in solution.values()),
-            "logs": self.logs
+            "total_cost": total_cost_val,
+            "logs": self.logs,
+            "budget_breakdown": {
+               "accommodation": round(total_cost_val * 0.4),
+               "transportation": round(total_cost_val * 0.15),
+               "food": round(total_cost_val * 0.25),
+               "activities": round(total_cost_val * 0.1),
+               "shopping": round(total_cost_val * 0.1),
+               "total_estimated": total_cost_val
+            },
+            "accommodations": [
+               { "tier": "Budget", "area": "Downtown Backpackers Area", "advantages": "Cheap, near transit", "estimated_cost": round((total_cost_val * 0.15) / request.days) },
+               { "tier": "Mid-range", "area": "Historic Quarter", "advantages": "Great views, central", "estimated_cost": round((total_cost_val * 0.4) / request.days) },
+               { "tier": "Luxury", "area": "Riverfront / Beachfront", "advantages": "Premium amenities, spa", "estimated_cost": round((total_cost_val * 0.8) / request.days) }
+            ],
+            "food_recommendations": {
+               "local_specialties": ["Local Street Food Platter", "Traditional Thali", "Spiced Tea/Coffee"]
+            },
+            "safety_guide": {
+               "risk_level": "Low",
+               "common_scams": ["Overpriced tourist taxis", "Fake tour guides near monuments"],
+               "emergency_info": "Dial 112 for local emergencies."
+            },
+            "packing_list": {
+               "clothing": ["Light cotton clothes", "Comfortable walking shoes", "Evening wear"],
+               "essentials": ["Power bank", "Sunscreen", "Reusable water bottle", "Local currency cache"]
+            }
         }
