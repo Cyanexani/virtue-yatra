@@ -46,12 +46,45 @@ export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
   const [selectedPin, setSelectedPin] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchCoordinates = async () => {
+      const newCoords = [];
+      for (const item of itinerary) {
+        if (CITY_COORDINATES[item.destination]) {
+          newCoords.push(CITY_COORDINATES[item.destination]);
+        } else {
+          try {
+            // Small delay to respect Nominatim API rate limits
+            await new Promise(r => setTimeout(r, 500));
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(item.destination)}`);
+            const data = await res.json();
+            
+            if (data && data.length > 0) {
+              const lat = parseFloat(data[0].lat);
+              const lng = parseFloat(data[0].lon);
+              newCoords.push({ lat, lng });
+              // Cache it to avoid duplicate network requests
+              CITY_COORDINATES[item.destination] = { lat, lng };
+            } else {
+              newCoords.push(CITY_COORDINATES["New Delhi"]);
+            }
+          } catch (e) {
+             console.error("Geocoding failed", e);
+             newCoords.push(CITY_COORDINATES["New Delhi"]);
+          }
+        }
+      }
+      if (!cancelled) {
+        setRouteCoordinates(newCoords);
+      }
+    };
+
     if (itinerary && itinerary.length > 0) {
-      const coords = itinerary.map(item => {
-        return CITY_COORDINATES[item.destination] || CITY_COORDINATES["New Delhi"];
-      });
-      setRouteCoordinates(coords);
+      fetchCoordinates();
     }
+    
+    return () => { cancelled = true; };
   }, [itinerary]);
 
   const routeGeojson = useMemo(() => {
