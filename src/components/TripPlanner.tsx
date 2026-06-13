@@ -89,10 +89,11 @@ const TripPlanner = () => {
       
       // 2. Flexible Days Parsing
       let days = 3;
-      const daysMatch = msg.match(/(\d+)\s*(?:day|week|month)/i);
+      const daysMatch = msg.match(/(\d+)\s*(day|week|month)/i);
       if (daysMatch) {
-        if (msg.includes("week")) days = parseInt(daysMatch[1]) * 7;
-        else if (msg.includes("month")) days = parseInt(daysMatch[1]) * 30;
+        const unit = daysMatch[2].toLowerCase();
+        if (unit.startsWith("week")) days = parseInt(daysMatch[1]) * 7;
+        else if (unit.startsWith("month")) days = parseInt(daysMatch[1]) * 30;
         else days = parseInt(daysMatch[1]);
       }
       

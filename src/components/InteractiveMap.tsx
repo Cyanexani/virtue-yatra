@@ -46,6 +46,7 @@ export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
   const [selectedPin, setSelectedPin] = useState<number | null>(null);
 
   useEffect(() => {
+    setSelectedPin(null);
     let cancelled = false;
 
     const fetchCoordinates = async () => {
