@@ -164,21 +164,21 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
             activities: [
               {
                 time: "Morning",
-                spot: `${destination} Heritage Trails`,
+                spot: i === 0 ? `${destination} Grand City Tour` : i === 1 ? `Historic Downtown ${destination}` : `${destination} Cultural Museums`,
                 type: "Popular",
-                description: `Kickstart your day exploring the beautiful heritage trails and soaking in the culture.`
+                description: i === 0 ? `Kickstart your trip exploring the iconic landmarks that make this place famous.` : i === 1 ? `Dive deep into the local architecture and bustling morning markets.` : `Spend a quiet morning absorbing the deep history and arts of the region.`
               },
               {
                 time: "Afternoon",
-                spot: `Hidden Valley of ${destination}`,
+                spot: i === 0 ? `Secret Alleyways of ${destination}` : i === 1 ? `${destination} Botanical Reserves` : `Local Artisan Village`,
                 type: "Underrated Spot",
-                description: `A secluded gem completely away from the tourist crowds. Perfect for relaxation and photography.`
+                description: i === 0 ? `A secluded gem completely away from the tourist crowds. Perfect for relaxation and photography.` : i === 1 ? `Escape the city noise in these beautiful, lush green pathways.` : `Watch local craftsmen at work and pick up some authentic souvenirs.`
               },
               {
                 time: "Evening",
-                spot: `${destination} Sunset Point & Cafe`,
-                type: "Leisure",
-                description: `Unwind at this highly rated cafe while watching the sunset over the horizon.`
+                spot: i === 0 ? `${destination} Sunset Point & Cafe` : i === 1 ? `Riverside Dining at ${destination}` : `Vibrant Night Market`,
+                type: i === 2 ? "Shopping" : "Leisure",
+                description: i === 0 ? `Unwind at this highly rated cafe while watching the sunset over the horizon.` : i === 1 ? `A premium culinary experience featuring the best local delicacies.` : `Immerse yourself in the bustling night energy and street food.`
               }
             ]
           });
