@@ -109,7 +109,9 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
       const end = new Date(endDate);
       const dayCount = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       
-      const numericBudget = budget === 'premium' ? 30000 : budget === 'luxury' ? 20000 : budget === 'moderate' ? 15000 : 10000;
+      const baseDailyRate = budget === 'premium' ? 12000 : budget === 'luxury' ? 8000 : budget === 'moderate' ? 4000 : 2000;
+      const travelersCount = parseInt(travelers || "1", 10) || 1;
+      const numericBudget = baseDailyRate * dayCount * travelersCount;
 
       try {
         let data;
