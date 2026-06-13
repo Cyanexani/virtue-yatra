@@ -25,6 +25,8 @@ interface Activity {
   spot: string;
   type: string;
   description: string;
+  transport_from_previous?: string;
+  cost_estimate?: string;
 }
 
 interface AIItineraryDay {
@@ -42,6 +44,32 @@ interface AIResponse {
   total_cost?: number;
   logs?: any[];
   error?: string;
+  budget_breakdown?: {
+    accommodation: number;
+    transportation: number;
+    food: number;
+    activities: number;
+    shopping: number;
+    total_estimated: number;
+  };
+  accommodations?: {
+    tier: string;
+    area: string;
+    advantages: string;
+    estimated_cost: number;
+  }[];
+  food_recommendations?: {
+    local_specialties: string[];
+  };
+  safety_guide?: {
+    risk_level: string;
+    common_scams: string[];
+    emergency_info?: string;
+  };
+  packing_list?: {
+    clothing: string[];
+    essentials: string[];
+  };
 }
 
 const ITINERARY_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/plan-trip";
@@ -196,12 +224,39 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
           });
         }
         
-        if (!cancelled) {
-          setAiData({
+        const mockResponse: AIResponse = {
             itinerary: mockItinerary,
             total_cost: totalCost,
-            total_utility: 92.5
-          });
+            total_utility: 92.5,
+            budget_breakdown: {
+               accommodation: Math.round(totalCost * 0.4),
+               transportation: Math.round(totalCost * 0.15),
+               food: Math.round(totalCost * 0.25),
+               activities: Math.round(totalCost * 0.1),
+               shopping: Math.round(totalCost * 0.1),
+               total_estimated: totalCost
+            },
+            accommodations: [
+               { tier: "Budget", area: "Downtown Backpackers Area", advantages: "Cheap, near transit", estimated_cost: Math.round(totalCost * 0.15 / actualDays) },
+               { tier: "Mid-range", area: "Historic Quarter", advantages: "Great views, central", estimated_cost: Math.round(totalCost * 0.4 / actualDays) },
+               { tier: "Luxury", area: "Riverfront / Beachfront", advantages: "Premium amenities, spa", estimated_cost: Math.round(totalCost * 0.8 / actualDays) }
+            ],
+            food_recommendations: {
+               local_specialties: ["Local Street Food Platter", "Traditional Thali", "Spiced Tea/Coffee"]
+            },
+            safety_guide: {
+               risk_level: "Low",
+               common_scams: ["Overpriced tourist taxis", "Fake tour guides near monuments"],
+               emergency_info: "Dial 112 for local emergencies."
+            },
+            packing_list: {
+               clothing: ["Light cotton clothes", "Comfortable walking shoes", "Evening wear"],
+               essentials: ["Power bank", "Sunscreen", "Reusable water bottle", "Local currency cache"]
+            }
+        };
+
+        if (!cancelled) {
+          setAiData(mockResponse);
           setLocalItinerary(mockItinerary);
         }
       } finally {
@@ -318,8 +373,16 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
                                         Underrated Spot 🤫
                                       </span>
                                     )}
+                                    {act.cost_estimate && (
+                                      <span className="text-[10px] font-semibold text-muted-foreground border border-border px-1.5 py-0.5 rounded bg-muted/30">
+                                        {act.cost_estimate}
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-sm text-muted-foreground leading-relaxed">{act.description}</p>
+                                  {act.transport_from_previous && (
+                                    <p className="text-xs text-primary/80 mt-1 font-medium italic">🚇 Transport: {act.transport_from_previous}</p>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -343,6 +406,87 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
               logs={aiData.logs || []}
             />
           )}
+
+          {/* New Advanced AI Consultant Sections */}
+          {aiData.budget_breakdown && (
+            <div className="grid md:grid-cols-2 gap-6 mt-8 animate-slide-up">
+               <Card className="p-5 bg-card/80 border-border/50 shadow-sm hover:shadow-md transition-all">
+                 <h4 className="font-bold text-xl mb-4 flex items-center gap-2 text-primary">💰 Budget Breakdown</h4>
+                 <div className="space-y-3 text-sm">
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30"><span>🏨 Accommodation</span><span className="font-semibold">₹{aiData.budget_breakdown.accommodation}</span></div>
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30"><span>🍽️ Food</span><span className="font-semibold">₹{aiData.budget_breakdown.food}</span></div>
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30"><span>🚇 Transport</span><span className="font-semibold">₹{aiData.budget_breakdown.transportation}</span></div>
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30"><span>🎟️ Activities</span><span className="font-semibold">₹{aiData.budget_breakdown.activities}</span></div>
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-muted/30"><span>🛍️ Shopping</span><span className="font-semibold">₹{aiData.budget_breakdown.shopping}</span></div>
+                   <div className="h-px bg-border/50 my-3"></div>
+                   <div className="flex justify-between items-center p-2 rounded-lg bg-primary/10 text-primary font-bold text-base"><span>Total Estimated</span><span>₹{aiData.budget_breakdown.total_estimated}</span></div>
+                 </div>
+               </Card>
+               {aiData.accommodations && (
+                 <Card className="p-5 bg-card/80 border-border/50 shadow-sm hover:shadow-md transition-all">
+                   <h4 className="font-bold text-xl mb-4 flex items-center gap-2 text-primary">🏨 Recommended Stays</h4>
+                   <div className="space-y-4">
+                     {aiData.accommodations.map((acc, i) => (
+                        <div key={i} className="text-sm border-l-2 border-primary/50 pl-4 py-1">
+                          <p className="font-bold text-base">{acc.tier} <span className="text-muted-foreground font-normal text-sm">in {acc.area}</span></p>
+                          <p className="text-muted-foreground mt-1">{acc.advantages}</p>
+                          <p className="text-primary font-semibold mt-1">Est. ₹{acc.estimated_cost}/night</p>
+                        </div>
+                     ))}
+                   </div>
+                 </Card>
+               )}
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-3 gap-6 mt-6 animate-slide-up">
+            {aiData.food_recommendations && (
+              <Card className="p-5 bg-card/80 border-border/50 shadow-sm hover:shadow-md transition-all">
+                 <h4 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary">🍽️ Culinary Guide</h4>
+                 <div className="text-sm">
+                    <p className="font-semibold mb-2 bg-muted/50 p-2 rounded-md">Must-Try Local Specialties</p>
+                    <ul className="space-y-2 pl-2">
+                      {aiData.food_recommendations.local_specialties.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>{f}</li>
+                      ))}
+                    </ul>
+                 </div>
+              </Card>
+            )}
+            {aiData.packing_list && (
+              <Card className="p-5 bg-card/80 border-border/50 shadow-sm hover:shadow-md transition-all">
+                 <h4 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary">🎒 Packing Checklist</h4>
+                 <div className="text-sm">
+                    <p className="font-semibold mb-2 bg-muted/50 p-2 rounded-md">Essentials</p>
+                    <ul className="space-y-2 pl-2">
+                      {aiData.packing_list.essentials.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>{f}</li>
+                      ))}
+                    </ul>
+                 </div>
+              </Card>
+            )}
+            {aiData.safety_guide && (
+              <Card className="p-5 bg-card/80 border-border/50 shadow-sm hover:shadow-md transition-all">
+                 <h4 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary">🛡️ Safety & Advisory</h4>
+                 <div className="text-sm">
+                    <div className="flex items-center justify-between mb-3 bg-muted/50 p-2 rounded-md">
+                      <span className="font-semibold">Risk Level</span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${aiData.safety_guide.risk_level === 'High' ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-600'}`}>{aiData.safety_guide.risk_level}</span>
+                    </div>
+                    <p className="font-semibold mb-2">Common Scams & Warnings</p>
+                    <ul className="space-y-2 pl-2 mb-3">
+                      {aiData.safety_guide.common_scams.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-amber-500/50 mt-1.5 flex-shrink-0"></span><span>{f}</span></li>
+                      ))}
+                    </ul>
+                    {aiData.safety_guide.emergency_info && (
+                      <p className="text-xs bg-destructive/5 text-destructive p-2 rounded font-medium mt-auto">🚨 {aiData.safety_guide.emergency_info}</p>
+                    )}
+                 </div>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
