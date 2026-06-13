@@ -42,7 +42,7 @@ const MAP_STYLE = {
 };
 
 export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
-  const [routeCoordinates, setRouteCoordinates] = useState<{lat: number, lng: number}[]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{lat: number, lng: number, title: string, day: string}[]>([]);
   const [selectedPin, setSelectedPin] = useState<number | null>(null);
 
   useEffect(() => {
@@ -51,28 +51,55 @@ export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
     const fetchCoordinates = async () => {
       const newCoords = [];
       for (const item of itinerary) {
-        if (CITY_COORDINATES[item.destination]) {
-          newCoords.push(CITY_COORDINATES[item.destination]);
-        } else {
+        // Fetch city center first
+        let cityCenter = CITY_COORDINATES[item.destination];
+        if (!cityCenter) {
           try {
-            // Small delay to respect Nominatim API rate limits
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 400));
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(item.destination)}`);
             const data = await res.json();
-            
             if (data && data.length > 0) {
-              const lat = parseFloat(data[0].lat);
-              const lng = parseFloat(data[0].lon);
-              newCoords.push({ lat, lng });
-              // Cache it to avoid duplicate network requests
-              CITY_COORDINATES[item.destination] = { lat, lng };
+              cityCenter = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+              CITY_COORDINATES[item.destination] = cityCenter;
             } else {
-              newCoords.push(CITY_COORDINATES["New Delhi"]);
+              cityCenter = CITY_COORDINATES["New Delhi"];
             }
           } catch (e) {
-             console.error("Geocoding failed", e);
-             newCoords.push(CITY_COORDINATES["New Delhi"]);
+             cityCenter = CITY_COORDINATES["New Delhi"];
           }
+        }
+
+        if (item.activities && item.activities.length > 0) {
+          for (const activity of item.activities) {
+            const query = activity.spot.includes(item.destination) ? activity.spot : `${activity.spot}, ${item.destination}`;
+            if (CITY_COORDINATES[query]) {
+              newCoords.push({ ...CITY_COORDINATES[query], title: activity.spot, day: item.day });
+            } else {
+              try {
+                await new Promise(r => setTimeout(r, 500));
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                  const lat = parseFloat(data[0].lat);
+                  const lng = parseFloat(data[0].lon);
+                  CITY_COORDINATES[query] = { lat, lng };
+                  newCoords.push({ lat, lng, title: activity.spot, day: item.day });
+                } else {
+                  // Offset slightly so multiple unmapped spots don't overlap perfectly
+                  newCoords.push({ 
+                    lat: cityCenter.lat + (Math.random() - 0.5) * 0.03, 
+                    lng: cityCenter.lng + (Math.random() - 0.5) * 0.03, 
+                    title: activity.spot, 
+                    day: item.day 
+                  });
+                }
+              } catch (e) {
+                newCoords.push({ lat: cityCenter.lat, lng: cityCenter.lng, title: activity.spot, day: item.day });
+              }
+            }
+          }
+        } else {
+          newCoords.push({ ...cityCenter, title: item.destination, day: item.day });
         }
       }
       if (!cancelled) {
@@ -106,7 +133,7 @@ export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
         initialViewState={{
           longitude: routeCoordinates[0].lng,
           latitude: routeCoordinates[0].lat,
-          zoom: 7
+          zoom: 11
         }}
         mapStyle={MAP_STYLE as any}
       >
@@ -135,9 +162,9 @@ export const InteractiveMap = ({ itinerary }: InteractiveMapProps) => {
             closeButton={false}
             offset={15}
           >
-            <div className="text-black">
-              <strong>{itinerary[selectedPin].day.replace("_", " ")}</strong><br />
-              {itinerary[selectedPin].destination}
+            <div className="text-black text-sm max-w-[200px]">
+              <strong>{routeCoordinates[selectedPin].day.replace("_", " ")}</strong><br />
+              <span className="font-semibold text-primary">{routeCoordinates[selectedPin].title}</span>
             </div>
           </Popup>
         )}
