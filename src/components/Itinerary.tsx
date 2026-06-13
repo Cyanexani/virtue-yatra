@@ -149,11 +149,21 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
         
         // Generate a rich local mock itinerary!
         const mockItinerary: AIItineraryDay[] = [];
-        let totalCost = 0;
         
-        for (let i = 0; i < Math.min(dayCount, 7); i++) {
-          const cost = Math.round((numericBudget / dayCount) * (0.8 + Math.random() * 0.4));
-          totalCost += cost;
+        // STRICT CONSTRAINT: Total cost must never exceed numericBudget
+        let totalCost = Math.round(numericBudget * (0.88 + Math.random() * 0.10)); 
+        let remainingCost = totalCost;
+        const actualDays = Math.min(dayCount, 7);
+        
+        for (let i = 0; i < actualDays; i++) {
+          let cost;
+          if (i === actualDays - 1) {
+            cost = remainingCost; // The last day perfectly consumes the remaining allocated budget
+          } else {
+            const avgPerDay = remainingCost / (actualDays - i);
+            cost = Math.round(avgPerDay * (0.8 + Math.random() * 0.4));
+            remainingCost -= cost;
+          }
           
           mockItinerary.push({
             day: `Day_${i + 1}`,
