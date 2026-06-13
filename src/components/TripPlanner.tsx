@@ -148,7 +148,9 @@ const TripPlanner = () => {
   const applyAutofillData = async (data: any) => {
     const start = new Date();
     const end = new Date();
-    end.setDate(start.getDate() + (data.days || 3));
+    const tripDays = data.days || 3;
+    // Subtract 1 so a 3-day trip starting on the 13th ends on the 15th (13, 14, 15 = 3 days)
+    end.setDate(start.getDate() + Math.max(0, tripDays - 1));
     
     const newFormData = {
       ...formData,
