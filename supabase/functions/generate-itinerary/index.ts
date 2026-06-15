@@ -45,30 +45,93 @@ Return a JSON itinerary using the provided tool. Include real, specific place na
             type: "function",
             function: {
               name: "return_itinerary",
-              description: "Return a structured day-by-day itinerary with specific places.",
+              description: "Return a full rich itinerary package including budget, accommodations, food recommendations, safety guide, and packing list.",
               parameters: {
                 type: "object",
                 properties: {
-                  days: {
+                  itinerary: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        day: { type: "number" },
-                        morning: { type: "string", description: "Specific morning activity with named place(s)" },
-                        afternoon: { type: "string", description: "Specific afternoon activity with named place(s)" },
-                        evening: { type: "string", description: "Specific evening activity with named place(s)" },
+                        day: { type: "string", description: "e.g., 'Day_1'" },
+                        destination: { type: "string" },
+                        cost: { type: "number", description: "Estimated cost for this day" },
+                        utility_score: { type: "number", description: "Score out of 100 based on user preferences" },
+                        reasoning: { type: "string", description: "Why this day plan fits the user" },
+                        activities: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              time: { type: "string" },
+                              spot: { type: "string" },
+                              type: { type: "string" },
+                              description: { type: "string" },
+                              transport_from_previous: { type: "string" },
+                              cost_estimate: { type: "string" }
+                            },
+                            required: ["time", "spot", "type", "description"]
+                          }
+                        }
                       },
-                      required: ["day", "morning", "afternoon", "evening"],
-                      additionalProperties: false,
-                    },
+                      required: ["day", "destination", "cost", "utility_score", "reasoning", "activities"]
+                    }
                   },
+                  budget_breakdown: {
+                    type: "object",
+                    properties: {
+                      accommodation: { type: "number" },
+                      transportation: { type: "number" },
+                      food: { type: "number" },
+                      activities: { type: "number" },
+                      shopping: { type: "number" },
+                      total_estimated: { type: "number" }
+                    },
+                    required: ["accommodation", "transportation", "food", "activities", "shopping", "total_estimated"]
+                  },
+                  accommodations: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        tier: { type: "string" },
+                        area: { type: "string" },
+                        advantages: { type: "string" },
+                        estimated_cost: { type: "number" }
+                      },
+                      required: ["tier", "area", "advantages", "estimated_cost"]
+                    }
+                  },
+                  food_recommendations: {
+                    type: "object",
+                    properties: {
+                      local_specialties: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["local_specialties"]
+                  },
+                  safety_guide: {
+                    type: "object",
+                    properties: {
+                      risk_level: { type: "string" },
+                      common_scams: { type: "array", items: { type: "string" } },
+                      emergency_info: { type: "string" }
+                    },
+                    required: ["risk_level", "common_scams", "emergency_info"]
+                  },
+                  packing_list: {
+                    type: "object",
+                    properties: {
+                      clothing: { type: "array", items: { type: "string" } },
+                      essentials: { type: "array", items: { type: "string" } }
+                    },
+                    required: ["clothing", "essentials"]
+                  }
                 },
-                required: ["days"],
-                additionalProperties: false,
-              },
-            },
-          },
+                required: ["itinerary", "budget_breakdown", "accommodations", "food_recommendations", "safety_guide", "packing_list"]
+              }
+            }
+          }
         ],
         tool_choice: { type: "function", function: { name: "return_itinerary" } },
       }),
@@ -97,6 +160,11 @@ Return a JSON itinerary using the provided tool. Include real, specific place na
     const args = toolCall?.function?.arguments;
     if (!args) throw new Error("No itinerary returned");
     const parsed = JSON.parse(args);
+
+    // Ensure total cost and utility score are calculated
+    parsed.total_cost = parsed.itinerary.reduce((sum: number, day: any) => sum + (day.cost || 0), 0);
+    const avgUtility = parsed.itinerary.reduce((sum: number, day: any) => sum + (day.utility_score || 0), 0) / (parsed.itinerary.length || 1);
+    parsed.total_utility = parseFloat(avgUtility.toFixed(1));
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
