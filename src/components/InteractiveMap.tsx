@@ -8,7 +8,14 @@ interface AIItineraryDay {
   cost: number;
   utility_score: number;
   reasoning: string;
-  activities?: any[];
+  activities?: {
+    time: string;
+    spot: string;
+    type: string;
+    description: string;
+    transport_from_previous?: string;
+    cost_estimate?: string;
+  }[];
 }
 
 interface InteractiveMapProps {
