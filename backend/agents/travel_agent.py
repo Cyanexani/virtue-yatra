@@ -103,12 +103,65 @@ class TravelAgent:
             }
         ]
         
-        self.log("Search (A*)", f"Expanded nodes to find shortest paths between potential destinations.")
+        # Graph of distances (in km) between available cities
+        graph = {
+            "Mysore": {"Ooty": 125, "New Delhi": 2000, "Goa": 600},
+            "Ooty": {"Coonoor": 20, "Mysore": 125, "Kodaikanal": 250},
+            "Coonoor": {"Ooty": 20, "Kodaikanal": 230},
+            "Kodaikanal": {"Ooty": 250, "Coonoor": 230, "Goa": 800},
+            "New Delhi": {"Mysore": 2000, "Goa": 1900},
+            "Goa": {"Mysore": 600, "Kodaikanal": 800, "New Delhi": 1900}
+        }
         
+        valid_cities = [d["name"] for d in destinations]
+        # Match user's requested city to start node, else default to a central node
+        start_node = next((c for c in valid_cities if c.lower() == request.city.lower()), "Mysore")
+        
+        initial_state = {"current": start_node, "visited": tuple([start_node])}
+        
+        def goal_test(state):
+            return len(state["visited"]) >= request.days
+            
+        def get_successors(state):
+            current = state["current"]
+            visited = state["visited"]
+            successors = []
+            if current in graph:
+                for neighbor, cost in graph[current].items():
+                    if neighbor not in visited and neighbor in valid_cities:
+                        new_state = {"current": neighbor, "visited": tuple(list(visited) + [neighbor])}
+                        successors.append((neighbor, new_state, cost))
+            
+            # Allow jumping to disconnected valid cities with a massive cost penalty if graph is stuck
+            if not successors and len(visited) < request.days:
+                for fallback in valid_cities:
+                    if fallback not in visited:
+                        new_state = {"current": fallback, "visited": tuple(list(visited) + [fallback])}
+                        successors.append((fallback, new_state, 5000))
+            return successors
+            
+        def heuristic(state):
+            # Admissible heuristic: assuming min distance between any two cities is ~20km
+            return max(0, request.days - len(state["visited"])) * 20
+            
+        self.log("Search (A*)", f"Expanding nodes to find optimal {request.days}-day path starting from {start_node}.")
+        path = astar_search(initial_state, goal_test, get_successors, heuristic)
+        
+        optimal_cities = [start_node]
+        if path:
+            optimal_cities.extend(path)
+            self.log("A* Result", f"Found optimal route (shortest travel distance): {' -> '.join(optimal_cities)}")
+        else:
+            self.log("A* Failure", "Could not find a valid path. Falling back to all destinations.")
+            optimal_cities = valid_cities
+            
         # 2. CSP Phase
         self.log("CSP Formulation", "Setting constraints: Budget <= limit, Days match, No repeats")
         variables = [f"Day_{i+1}" for i in range(request.days)]
-        domains = {var: destinations for var in variables}
+        
+        # CSP Domain is restricted to ONLY the cities intelligently found by A*
+        filtered_destinations = [d for d in destinations if d["name"] in optimal_cities]
+        domains = {var: filtered_destinations for var in variables}
         
         csp = CSP(variables, domains)
         
@@ -127,19 +180,14 @@ class TravelAgent:
         csp.add_constraint(variables, unique_constraint)
         
         # Constraint: If the requested city is in our database, it MUST be the first day's destination.
-        # If it's not in the database, the solver will fail and fallback to the frontend mock generator.
         valid_city_names = [d["name"].lower() for d in destinations]
-        if request.city.lower() in valid_city_names:
-            def start_city_constraint(assignment):
-                if "Day_1" in assignment:
-                    return assignment["Day_1"]["name"].lower() == request.city.lower()
-                return True
-            csp.add_constraint(variables, start_city_constraint)
-        else:
-            # Force failure so the frontend mock generator can handle custom cities like 'Paris' or 'Mumbai' perfectly.
-            def force_fail(assignment):
-                return False
-            csp.add_constraint(variables, force_fail)
+        
+        # In regional mode, start_node is determined by A*
+        def start_city_constraint(assignment):
+            if "Day_1" in assignment:
+                return assignment["Day_1"]["name"].lower() == start_node.lower()
+            return True
+        csp.add_constraint(variables, start_city_constraint)
         
         solution = csp.solve()
         
