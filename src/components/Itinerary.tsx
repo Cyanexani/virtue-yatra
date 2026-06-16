@@ -31,6 +31,7 @@ interface Activity {
 }
 
 interface AIItineraryDay {
+  id?: string;
   day: string;
   destination: string;
   cost: number;
@@ -175,7 +176,11 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
 
         if (!cancelled) {
           setAiData(data);
-          setLocalItinerary(data.itinerary || []);
+          const withIds = (data.itinerary || []).map((item: any) => ({
+            ...item,
+            id: item.id || crypto.randomUUID()
+          }));
+          setLocalItinerary(withIds);
         }
       } catch (e) {
         console.warn("AI Planner unavailable, generating local mock itinerary...", e);
@@ -262,7 +267,11 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
 
         if (!cancelled) {
           setAiData(mockResponse);
-          setLocalItinerary(mockItinerary);
+          const mockWithIds = mockItinerary.map(item => ({
+            ...item,
+            id: crypto.randomUUID()
+          }));
+          setLocalItinerary(mockWithIds);
         }
       } finally {
         if (!cancelled) setAiLoading(false);
@@ -270,7 +279,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
     };
     if (destination && startDate && endDate) fetchAI();
     return () => { cancelled = true; };
-  }, [destination, startDate, endDate, interests.join(','), travelers, budget, specialRequests]);
+  }, [destination, startDate, endDate, (interests || []).join(','), travelers, budget, specialRequests]);
 
   return (
     <Card className="p-6 mt-8 border-border/50 bg-card/80 backdrop-blur-sm animate-slide-up">
@@ -339,7 +348,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-6 mt-6">
                   {localItinerary.map((dayItem, idx) => (
-                    <Draggable key={dayItem.day} draggableId={dayItem.day} index={idx}>
+                    <Draggable key={dayItem.id || dayItem.day} draggableId={dayItem.id || dayItem.day} index={idx}>
                       {(provided) => (
                         <div 
                           ref={provided.innerRef} 
