@@ -88,18 +88,27 @@ const TripMap = () => {
     if (!query.trim()) return;
     setSearching(true);
     try {
-      // FIX: removed hardcoded ", India" suffix — supports international destinations
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
-        { headers: { Accept: "application/json" } }
-      );
-      const data = await res.json();
-      if (!data?.length) {
-        toast({ title: "Not found", description: "Try a more specific place name.", variant: "destructive" });
-        return;
+      let newDest;
+      
+      const coordMatch = query.trim().match(/^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/);
+      if (coordMatch) {
+        const lat = parseFloat(coordMatch[1]);
+        const lng = parseFloat(coordMatch[3]);
+        newDest = { lat, lng, label: `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}` };
+      } else {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+          { headers: { Accept: "application/json", "User-Agent": "VirtueYatra/1.0" } }
+        );
+        const data = await res.json();
+        if (!data?.length) {
+          toast({ title: "Not found", description: "Try a more specific place name.", variant: "destructive" });
+          return;
+        }
+        const d = data[0];
+        newDest = { lat: parseFloat(d.lat), lng: parseFloat(d.lon), label: d.display_name };
       }
-      const d = data[0];
-      const newDest = { lat: parseFloat(d.lat), lng: parseFloat(d.lon), label: d.display_name };
+      
       setDestination(newDest);
       setInfoOpen(true);
       alertedRef.current = false;
