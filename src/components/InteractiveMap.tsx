@@ -22,7 +22,7 @@ interface InteractiveMapProps {
   itinerary: AIItineraryDay[];
 }
 
-const CITY_COORDINATES: Record<string, {lat: number, lng: number}> = {
+let CITY_COORDINATES: Record<string, {lat: number, lng: number}> = {
   "Ooty": {lat: 11.4102, lng: 76.6950},
   "Coonoor": {lat: 11.3530, lng: 76.7959},
   "Mysore": {lat: 12.2958, lng: 76.6394},

@@ -270,7 +270,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
     };
     if (destination && startDate && endDate) fetchAI();
     return () => { cancelled = true; };
-  }, [destination, startDate, endDate, JSON.stringify(interests), travelers, budget, specialRequests]);
+  }, [destination, startDate, endDate, interests.join(','), travelers, budget, specialRequests]);
 
   return (
     <Card className="p-6 mt-8 border-border/50 bg-card/80 backdrop-blur-sm animate-slide-up">
@@ -339,7 +339,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-6 mt-6">
                   {localItinerary.map((dayItem, idx) => (
-                    <Draggable key={dayItem.destination + idx} draggableId={dayItem.destination + idx} index={idx}>
+                    <Draggable key={dayItem.day} draggableId={dayItem.day} index={idx}>
                       {(provided) => (
                         <div 
                           ref={provided.innerRef} 

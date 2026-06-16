@@ -34,7 +34,6 @@ createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GlobalErrorBoundary>
       <App />
-      <Toaster />
     </GlobalErrorBoundary>
   </React.StrictMode>,
 );

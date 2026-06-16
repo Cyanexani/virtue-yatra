@@ -19,8 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
