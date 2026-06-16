@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2, Wand2, Loader2, BrainCircuit } from "lucide-react";
+import { Calendar, MapPin, Users, DollarSign, Sparkles, Check, ArrowLeft, History, Trash2, Loader2, BrainCircuit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -35,59 +35,56 @@ interface SavedTrip {
   created_at: string;
 }
 
+const EMPTY_FORM = {
+  destination: "",
+  startDate: "",
+  endDate: "",
+  travelers: "1",
+  budget: "",
+  interests: [] as string[],
+  specialRequests: "",
+};
+
 const TripPlanner = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [showSummary, setShowSummary] = useState(false);
+  // FIX: itinerary only auto-shows after user explicitly clicks "Get Detailed Itinerary"
   const [showItinerary, setShowItinerary] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [tripSummary, setTripSummary] = useState<TripSummary | null>(null);
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
   const [loading, setLoading] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
-  const [formData, setFormData] = useState({
-    destination: "",
-    startDate: "",
-    endDate: "",
-    travelers: "1",
-    budget: "",
-    interests: [] as string[],
-    specialRequests: "",
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 
   const handleMagicAutofill = async () => {
-    if (!chatInput) return;
+    if (!chatInput.trim()) return;
     setChatLoading(true);
-    
-    let parsedData;
-    
-    // Try True AI Parsing first if configured
+
+    let parsedData: any = null;
+
     if (isGeminiConfigured()) {
       try {
         parsedData = await parseUserPrompt(chatInput);
-        console.log("Gemini Parsed Output:", parsedData);
       } catch (geminiError) {
         console.error("Gemini AI failed, falling back to NLP", geminiError);
         parsedData = null;
       }
     }
-    
-    // Fallback to local NLP parsing
+
     if (!parsedData) {
-      console.log("Using local NLP parsing");
       const msg = chatInput.toLowerCase();
-      
-      // 1. Flexible Budget Parsing
+
       let budget = "moderate";
       if (msg.match(/luxury|expensive|high-end|lavish/i)) budget = "luxury";
       else if (msg.match(/premium|first class/i)) budget = "premium";
       else if (msg.match(/cheap|budget|affordable|low cost|backpacker/i)) budget = "budget";
-      
-      // 2. Flexible Days Parsing
+
       let days = 3;
       const daysMatch = msg.match(/(\d+)\s*(day|week|month)/i);
       if (daysMatch) {
@@ -96,12 +93,11 @@ const TripPlanner = () => {
         else if (unit.startsWith("month")) days = parseInt(daysMatch[1]) * 30;
         else days = parseInt(daysMatch[1]);
       }
-      
-      // 3. Smart Destination Extraction (Regex Context + Fallbacks)
+
       let dest = "South India";
       const destMatch = chatInput.match(/(?:trip to|visit|travel to|go to|explore|tour of|in)\s+([a-zA-Z\s]+?)(?=\s+for|\s+with|\s+and|\s+to|\.|,|$)/i);
       if (destMatch && destMatch[1].trim().length > 2) {
-        dest = destMatch[1].trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        dest = destMatch[1].trim().split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       } else {
         const common = ["kerala", "ooty", "goa", "delhi", "mumbai", "bangalore", "chennai", "jaipur", "agra", "bali", "paris", "london", "dubai", "singapore", "manali", "shimla"];
         for (const city of common) {
@@ -112,8 +108,7 @@ const TripPlanner = () => {
           }
         }
       }
-      
-      // 4. Flexible Interest Synonyms Mapping
+
       const foundInterests: string[] = [];
       const interestMap: Record<string, string[]> = {
         "Adventure": ["adventure", "trek", "hike", "sports", "thrill", "mountain", "extreme"],
@@ -133,7 +128,7 @@ const TripPlanner = () => {
           foundInterests.push(uiTag);
         }
       });
-      
+
       parsedData = {
         destination: dest,
         budget,
@@ -141,8 +136,8 @@ const TripPlanner = () => {
         interests: Array.from(new Set(foundInterests))
       };
     }
-    
-    applyAutofillData(parsedData);
+
+    await applyAutofillData(parsedData);
     setChatLoading(false);
   };
 
@@ -150,9 +145,8 @@ const TripPlanner = () => {
     const start = new Date();
     const end = new Date();
     const tripDays = data.days || 3;
-    // Subtract 1 so a 3-day trip starting on the 13th ends on the 15th (13, 14, 15 = 3 days)
     end.setDate(start.getDate() + Math.max(0, tripDays - 1));
-    
+
     const newFormData = {
       ...formData,
       destination: data.destination || formData.destination,
@@ -164,13 +158,13 @@ const TripPlanner = () => {
 
     setFormData(newFormData);
     toast({ title: "Magic Autofill Complete! 🪄", description: "We extracted your trip details." });
-    
-    // Auto-trigger itinerary generation
+
+    // FIX: show summary card but do NOT auto-mount Itinerary.
+    // User must click "Get Detailed Itinerary" — avoids firing Gemini before they're ready.
     setTripSummary(newFormData);
     setShowSummary(true);
-    setShowItinerary(true);
-    
-    // Save to database if user is logged in
+    setShowItinerary(false);
+
     if (user && newFormData.destination) {
       const { error } = await supabase.from('trips').insert({
         user_id: user.id,
@@ -199,19 +193,15 @@ const TripPlanner = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchSavedTrips();
-    }
+    if (user) fetchSavedTrips();
   }, [user]);
 
   const fetchSavedTrips = async () => {
     if (!user) return;
-    
     const { data, error } = await supabase
       .from('trips')
       .select('*')
       .order('created_at', { ascending: false });
-
     if (error) {
       console.error('Error fetching trips:', error);
     } else {
@@ -230,7 +220,7 @@ const TripPlanner = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.destination || !formData.startDate || !formData.endDate) {
       toast({
         title: t('toast.missingInfo'),
@@ -240,9 +230,18 @@ const TripPlanner = () => {
       return;
     }
 
+    // FIX: validate end date is not before start date
+    if (formData.endDate < formData.startDate) {
+      toast({
+        title: "Invalid dates",
+        description: "End date cannot be before start date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
-    // Save to database if user is logged in
     if (user) {
       const { error } = await supabase.from('trips').insert({
         user_id: user.id,
@@ -270,12 +269,12 @@ const TripPlanner = () => {
 
     setTripSummary(formData);
     setShowSummary(true);
-    setShowItinerary(true);
+    setShowItinerary(false); // FIX: same as autofill — user clicks the button themselves
     setLoading(false);
 
     toast({
       title: t('toast.tripCreated'),
-      description: user 
+      description: user
         ? t('toast.tripSaved').replace('{destination}', formData.destination)
         : t('toast.tripReadySignIn').replace('{destination}', formData.destination),
     });
@@ -283,18 +282,10 @@ const TripPlanner = () => {
 
   const handleDeleteTrip = async (tripId: string) => {
     const { error } = await supabase.from('trips').delete().eq('id', tripId);
-    
     if (error) {
-      toast({
-        title: t('toast.errorSavingTrip'),
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: t('toast.errorSavingTrip'), description: error.message, variant: "destructive" });
     } else {
-      toast({
-        title: t('toast.tripDeleted'),
-        description: t('toast.tripDeletedDesc'),
-      });
+      toast({ title: t('toast.tripDeleted'), description: t('toast.tripDeletedDesc') });
       fetchSavedTrips();
     }
   };
@@ -303,31 +294,19 @@ const TripPlanner = () => {
     setShowSummary(false);
     setShowItinerary(false);
     setTripSummary(null);
-    setFormData({
-      destination: "",
-      startDate: "",
-      endDate: "",
-      travelers: "1",
-      budget: "",
-      interests: [],
-      specialRequests: "",
-    });
+    setFormData(EMPTY_FORM);
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    // FIX: append T00:00:00 to force local-time parse, avoiding off-by-one from UTC
+    return new Date(dateStr + "T00:00:00").toLocaleDateString('en-IN', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
   };
 
   const formatShortDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
+    return new Date(dateStr + "T00:00:00").toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric'
     });
   };
 
@@ -351,7 +330,7 @@ const TripPlanner = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {t('planner.subtitle')}
           </p>
-          
+
           {user && savedTrips.length > 0 && (
             <Button
               variant="outline"
@@ -418,14 +397,14 @@ const TripPlanner = () => {
 
         <div className="max-w-4xl mx-auto">
           {showSummary && tripSummary ? (
-            /* Trip Summary Card */
             <>
               <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm animate-slide-up">
                 <div className="text-center mb-8">
                   <div className="w-20 h-20 bg-gradient-to-br from-primary to-travel-ocean rounded-full flex items-center justify-center mx-auto mb-4">
                     <Check className="w-10 h-10 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold gradient-text mb-2">{t('planner.tripPlanned')}</h3>      <p className="text-muted-foreground">
+                  <h3 className="text-2xl font-bold gradient-text mb-2">{t('planner.tripPlanned')}</h3>
+                  <p className="text-muted-foreground">
                     {user ? t('planner.savedToHistory') : t('planner.signInToSave')}
                   </p>
                 </div>
@@ -439,7 +418,6 @@ const TripPlanner = () => {
                         <p className="font-semibold text-lg">{tripSummary.destination}</p>
                       </div>
                     </div>
-
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50">
                       <Calendar className="w-5 h-5 text-primary mt-0.5" />
                       <div>
@@ -461,7 +439,6 @@ const TripPlanner = () => {
                         </p>
                       </div>
                     </div>
-
                     {tripSummary.budget && (
                       <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50">
                         <DollarSign className="w-5 h-5 text-primary mt-0.5" />
@@ -478,7 +455,6 @@ const TripPlanner = () => {
                   <div className="mb-6">
                     <p className="text-sm text-muted-foreground mb-3">{t('planner.selectedInterests') || "Curated Preferences"}</p>
                     <div className="space-y-4">
-                      {/* Vibe Category */}
                       {tripSummary.interests.some(i => ["Relaxation", "Luxury", "Party"].includes(i)) && (
                         <div>
                           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">✨ Vibe & Atmosphere</p>
@@ -491,11 +467,9 @@ const TripPlanner = () => {
                           </div>
                         </div>
                       )}
-                      
-                      {/* Activity Category */}
                       {tripSummary.interests.some(i => ["Adventure", "Hiking", "Wildlife"].includes(i)) && (
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">🏃‍♂️ Activities</p>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">🏃♂️ Activities</p>
                           <div className="flex flex-wrap gap-2">
                             {tripSummary.interests.filter(i => ["Adventure", "Hiking", "Wildlife"].includes(i)).map(interest => (
                               <span key={interest} className="px-4 py-1.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium text-sm border border-orange-500/20 shadow-sm">
@@ -505,8 +479,6 @@ const TripPlanner = () => {
                           </div>
                         </div>
                       )}
-
-                      {/* Experience Category */}
                       {tripSummary.interests.some(i => ["Culture", "History", "Food", "Shopping", "Photography", "Beach"].includes(i)) && (
                         <div>
                           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-semibold">🎭 Experiences & Scenery</p>
@@ -531,11 +503,7 @@ const TripPlanner = () => {
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Button
-                    onClick={handleNewTrip}
-                    variant="outline"
-                    className="flex-1"
-                  >
+                  <Button onClick={handleNewTrip} variant="outline" className="flex-1">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     {t('planner.planAnotherTrip')}
                   </Button>
@@ -544,12 +512,11 @@ const TripPlanner = () => {
                     className="flex-1 bg-gradient-to-r from-primary to-travel-ocean hover:scale-105 transition-all duration-300"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
-                    {t('planner.getDetailedItinerary')}
+                    {showItinerary ? "Hide Itinerary" : t('planner.getDetailedItinerary')}
                   </Button>
                 </div>
               </Card>
 
-              {/* Detailed Itinerary */}
               {showItinerary && (
                 <Itinerary
                   destination={tripSummary.destination}
@@ -563,10 +530,9 @@ const TripPlanner = () => {
               )}
             </>
           ) : (
-            /* Main Input Area */
             <Card className="p-8 border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm overflow-hidden relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-travel-ocean/5 pointer-events-none" />
-              
+
               <div className="relative z-10 flex flex-col items-center max-w-2xl mx-auto space-y-6 py-6">
                 <div className="flex items-center gap-3 text-primary mb-2">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-travel-ocean flex items-center justify-center shadow-lg">
@@ -579,14 +545,14 @@ const TripPlanner = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <p className="text-center text-muted-foreground text-lg">
                   Tell me about your dream vacation. I'll handle the logistics.
                 </p>
 
                 <div className="w-full relative shadow-lg rounded-2xl group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
-                  <Textarea 
-                    placeholder='e.g. "I want a 4 day luxury trip to Kerala for adventure and wildlife photography"' 
+                  <Textarea
+                    placeholder='e.g. "I want a 4 day luxury trip to Kerala for adventure and wildlife photography"'
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -598,9 +564,9 @@ const TripPlanner = () => {
                     className="w-full min-h-[140px] p-6 text-lg bg-background border-primary/20 rounded-2xl resize-none focus:ring-0"
                   />
                   <div className="absolute bottom-4 right-4">
-                    <Button 
-                      onClick={handleMagicAutofill} 
-                      disabled={chatLoading || !chatInput.trim()} 
+                    <Button
+                      onClick={handleMagicAutofill}
+                      disabled={chatLoading || !chatInput.trim()}
                       className="bg-primary hover:bg-primary/90 text-white rounded-xl shadow-md h-12 px-6"
                     >
                       {chatLoading ? (
@@ -619,7 +585,7 @@ const TripPlanner = () => {
                 </div>
 
                 <div className="pt-6 border-t border-border/50 w-full text-center">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowManualForm(!showManualForm)}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
@@ -629,147 +595,140 @@ const TripPlanner = () => {
                 </div>
               </div>
 
-              {/* Collapsible Manual Form */}
               {showManualForm && (
                 <div className="mt-8 pt-8 border-t border-border/50 relative z-10 animate-in fade-in slide-in-from-top-4 duration-500">
                   <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Destination and Dates */}
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="destination" className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      {t('planner.destination')}
-                    </Label>
-                    <Input
-                      id="destination"
-                      placeholder={t('planner.whereTo')}
-                      value={formData.destination}
-                      onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
-                      className="border-border/50 focus:border-primary"
-                    />
-                  </div>
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="destination" className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          {t('planner.destination')}
+                        </Label>
+                        <Input
+                          id="destination"
+                          placeholder={t('planner.whereTo')}
+                          value={formData.destination}
+                          onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
+                          className="border-border/50 focus:border-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="startDate" className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          {t('planner.startDate')}
+                        </Label>
+                        <Input
+                          id="startDate"
+                          type="date"
+                          value={formData.startDate}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                          className="border-border/50 focus:border-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="endDate" className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          {t('planner.endDate')}
+                        </Label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          value={formData.endDate}
+                          min={formData.startDate || new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                          className="border-border/50 focus:border-primary"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="startDate" className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      {t('planner.startDate')}
-                    </Label>
-                    <Input
-                      id="startDate"
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="border-border/50 focus:border-primary"
-                    />
-                  </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="travelers" className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          {t('planner.travelers')}
+                        </Label>
+                        <Select value={formData.travelers} onValueChange={(value) => setFormData(prev => ({ ...prev, travelers: value }))}>
+                          <SelectTrigger className="border-border/50 focus:border-primary bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border z-50">
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                              <SelectItem key={num} value={num.toString()}>
+                                {num} {num === 1 ? t('planner.traveler') : t('planner.travelersPlural')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="budget" className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-primary" />
+                          {t('planner.budget')}
+                        </Label>
+                        <Select value={formData.budget} onValueChange={(value) => setFormData(prev => ({ ...prev, budget: value }))}>
+                          <SelectTrigger className="border-border/50 focus:border-primary bg-background">
+                            <SelectValue placeholder={t('planner.selectBudget')} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border z-50">
+                            <SelectItem value="budget">{t('planner.budgetLow')}</SelectItem>
+                            <SelectItem value="moderate">{t('planner.budgetModerate')}</SelectItem>
+                            <SelectItem value="luxury">{t('planner.budgetLuxury')}</SelectItem>
+                            <SelectItem value="premium">{t('planner.budgetPremium')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="endDate" className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      {t('planner.endDate')}
-                    </Label>
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="border-border/50 focus:border-primary"
-                    />
-                  </div>
-                </div>
-
-                {/* Travelers and Budget */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="travelers" className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-primary" />
-                      {t('planner.travelers')}
-                    </Label>
-                    <Select value={formData.travelers} onValueChange={(value) => setFormData(prev => ({ ...prev, travelers: value }))}>
-                      <SelectTrigger className="border-border/50 focus:border-primary bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border z-50">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                          <SelectItem key={num} value={num.toString()}>
-                            {num} {num === 1 ? t('planner.traveler') : t('planner.travelersPlural')}
-                          </SelectItem>
+                    <div className="space-y-3">
+                      <Label>{t('planner.interests')}</Label>
+                      <p className="text-sm text-muted-foreground">{t('planner.selectInterests')}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {interestOptions.map(interest => (
+                          <button
+                            key={interest}
+                            type="button"
+                            onClick={() => toggleInterest(interest)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                              formData.interests.includes(interest)
+                                ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:scale-105'
+                            }`}
+                          >
+                            {getInterestLabel(interest)}
+                          </button>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="budget" className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-primary" />
-                      {t('planner.budget')}
-                    </Label>
-                    <Select value={formData.budget} onValueChange={(value) => setFormData(prev => ({ ...prev, budget: value }))}>
-                      <SelectTrigger className="border-border/50 focus:border-primary bg-background">
-                        <SelectValue placeholder={t('planner.selectBudget')} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border z-50">
-                        <SelectItem value="budget">{t('planner.budgetLow')}</SelectItem>
-                        <SelectItem value="moderate">{t('planner.budgetModerate')}</SelectItem>
-                        <SelectItem value="luxury">{t('planner.budgetLuxury')}</SelectItem>
-                        <SelectItem value="premium">{t('planner.budgetPremium')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="specialRequests">{t('planner.specialRequests')}</Label>
+                      <Textarea
+                        id="specialRequests"
+                        placeholder={t('planner.specialRequestsPlaceholder')}
+                        value={formData.specialRequests}
+                        onChange={(e) => setFormData(prev => ({ ...prev, specialRequests: e.target.value }))}
+                        className="border-border/50 focus:border-primary min-h-24"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-primary to-travel-ocean hover:scale-105 transition-all duration-300 shadow-lg text-lg py-6"
+                    >
+                      <Sparkles className="mr-2 w-5 h-5" />
+                      {loading ? t('planner.creating') : t('planner.createItinerary')}
+                    </Button>
+
+                    {!user && (
+                      <p className="text-center text-sm text-muted-foreground">
+                        {t('planner.signInToSave')}
+                      </p>
+                    )}
+                  </form>
                 </div>
-
-                {/* Interests */}
-                <div className="space-y-3">
-                  <Label>{t('planner.interests')}</Label>
-                  <p className="text-sm text-muted-foreground">{t('planner.selectInterests')}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {interestOptions.map(interest => (
-                      <button
-                        key={interest}
-                        type="button"
-                        onClick={() => toggleInterest(interest)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                          formData.interests.includes(interest)
-                            ? 'bg-primary text-primary-foreground shadow-md scale-105'
-                            : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:scale-105'
-                        }`}
-                      >
-                        {getInterestLabel(interest)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Special Requests */}
-                <div className="space-y-2">
-                  <Label htmlFor="specialRequests">{t('planner.specialRequests')}</Label>
-                  <Textarea
-                    id="specialRequests"
-                    placeholder={t('planner.specialRequestsPlaceholder')}
-                    value={formData.specialRequests}
-                    onChange={(e) => setFormData(prev => ({ ...prev, specialRequests: e.target.value }))}
-                    className="border-border/50 focus:border-primary min-h-24"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  size="lg"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-primary to-travel-ocean hover:scale-105 transition-all duration-300 shadow-lg text-lg py-6"
-                >
-                  <Sparkles className="mr-2 w-5 h-5" />
-                  {loading ? t('planner.creating') : t('planner.createItinerary')}
-                </Button>
-
-                  {!user && (
-                    <p className="text-center text-sm text-muted-foreground">
-                      {t('planner.signInToSave')}
-                    </p>
-                  )}
-                </form>
-              </div>
               )}
             </Card>
           )}

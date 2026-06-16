@@ -23,7 +23,7 @@ const haversine = (a: LatLng, b: LatLng) => {
 
 const generateCircleGeojson = (center: LatLng, radiusInMeters: number) => {
   const points = 64;
-  const coords = [];
+  const coords: [number, number][] = [];
   const km = radiusInMeters / 1000;
   for (let i = 0; i < points; i++) {
     const theta = (i / points) * (2 * Math.PI);
@@ -37,10 +37,7 @@ const generateCircleGeojson = (center: LatLng, radiusInMeters: number) => {
   return {
     type: 'Feature' as const,
     properties: {},
-    geometry: {
-      type: 'Polygon' as const,
-      coordinates: [coords]
-    }
+    geometry: { type: 'Polygon' as const, coordinates: [coords] }
   };
 };
 
@@ -69,21 +66,8 @@ const playAlarm = () => {
 
 const MAP_STYLE = {
   version: 8 as const,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "&copy; OpenStreetMap Contributors"
-    }
-  },
-  layers: [
-    {
-      id: "osm",
-      type: "raster",
-      source: "osm"
-    }
-  ]
+  sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "&copy; OpenStreetMap Contributors" } },
+  layers: [{ id: "osm", type: "raster", source: "osm" }]
 };
 
 const TripMap = () => {
@@ -104,8 +88,9 @@ const TripMap = () => {
     if (!query.trim()) return;
     setSearching(true);
     try {
+      // FIX: removed hardcoded ", India" suffix — supports international destinations
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query + ", India")}`,
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
         { headers: { Accept: "application/json" } }
       );
       const data = await res.json();
@@ -119,7 +104,6 @@ const TripMap = () => {
       setInfoOpen(true);
       alertedRef.current = false;
       toast({ title: "Destination set 📍", description: d.display_name.split(",").slice(0, 2).join(",") });
-      
       mapRef.current?.flyTo({ center: [newDest.lng, newDest.lat], zoom: 14, duration: 2000 });
     } catch (e) {
       toast({ title: "Search failed", description: "Check your connection and try again.", variant: "destructive" });
@@ -145,9 +129,7 @@ const TripMap = () => {
       Notification.requestPermission();
     }
     watchId.current = navigator.geolocation.watchPosition(
-      (p) => {
-        setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
-      },
+      (p) => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
       (err) => {
         toast({ title: "Location error", description: err.message, variant: "destructive" });
         stopTracking();
@@ -206,7 +188,7 @@ const TripMap = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Search a destination (e.g. Charminar, Hyderabad)"
+                placeholder="Search any destination (e.g. Charminar, Hyderabad or Eiffel Tower)"
                 className="flex-1"
               />
               <Button onClick={handleSearch} disabled={searching} className="bg-gradient-to-r from-primary to-travel-ocean">
@@ -240,9 +222,7 @@ const TripMap = () => {
               {distance !== null && (
                 <span className="flex items-center gap-2">
                   <BellRing className={`w-4 h-4 ${distance <= ALERT_RADIUS_M ? "text-secondary animate-pulse" : "text-muted-foreground"}`} />
-                  <span>
-                    {distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(2)} km`} away
-                  </span>
+                  <span>{distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(2)} km`} away</span>
                 </span>
               )}
             </div>
@@ -251,59 +231,25 @@ const TripMap = () => {
           <div className="h-[500px] w-full relative">
             <Map
               ref={mapRef}
-              initialViewState={{
-                longitude: 78.9629,
-                latitude: 20.5937,
-                zoom: 5
-              }}
+              initialViewState={{ longitude: 78.9629, latitude: 20.5937, zoom: 5 }}
               mapStyle={MAP_STYLE as any}
             >
               {destination && (
-                <Marker 
-                    longitude={destination.lng} 
-                    latitude={destination.lat} 
-                    onClick={e => {
-                        e.originalEvent.stopPropagation();
-                        setInfoOpen(true);
-                    }}
-                >
-                  <div className="w-5 h-5 bg-red-500 rounded-full border-2 border-white shadow-lg cursor-pointer"></div>
+                <Marker longitude={destination.lng} latitude={destination.lat} onClick={e => { e.originalEvent.stopPropagation(); setInfoOpen(true); }}>
+                  <div className="w-5 h-5 bg-red-500 rounded-full border-2 border-white shadow-lg cursor-pointer" />
                 </Marker>
               )}
               {destination && infoOpen && (
-                <Popup
-                  longitude={destination.lng}
-                  latitude={destination.lat}
-                  anchor="bottom"
-                  onClose={() => setInfoOpen(false)}
-                  offset={15}
-                >
+                <Popup longitude={destination.lng} latitude={destination.lat} anchor="bottom" onClose={() => setInfoOpen(false)} offset={15}>
                   <div className="text-black">{destination.label}</div>
                 </Popup>
               )}
-              
               {circleGeojson && (
                 <Source id="alert-circle" type="geojson" data={circleGeojson}>
-                  <Layer 
-                    id="alert-circle-fill" 
-                    type="fill" 
-                    paint={{
-                      'fill-color': 'hsl(var(--secondary))',
-                      'fill-opacity': 0.15
-                    }} 
-                  />
-                  <Layer 
-                    id="alert-circle-outline" 
-                    type="line" 
-                    paint={{
-                      'line-color': 'hsl(var(--secondary))',
-                      'line-width': 2,
-                      'line-opacity': 0.8
-                    }} 
-                  />
+                  <Layer id="alert-circle-fill" type="fill" paint={{ 'fill-color': 'hsl(var(--secondary))', 'fill-opacity': 0.15 }} />
+                  <Layer id="alert-circle-outline" type="line" paint={{ 'line-color': 'hsl(var(--secondary))', 'line-width': 2, 'line-opacity': 0.8 }} />
                 </Source>
               )}
-
               {userPos && (
                 <Marker longitude={userPos.lng} latitude={userPos.lat}>
                   <div className="w-[18px] h-[18px] rounded-full bg-primary shadow-[0_0_0_6px_hsla(var(--primary)/0.25)] border-2 border-white" />
