@@ -143,14 +143,20 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
 
     try {
       let data: any;
+      let fnErrorObj = null;
 
-      const { data: fnData, error: fnError } = await supabase.functions.invoke("generate-itinerary", {
-        body: { destination, startDate, endDate, interests, travelers, budget, specialRequests },
-      });
-
-      if (fnError) throw fnError;
-      if (fnData?.error) throw new Error(fnData.error);
-      data = fnData;
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke("generate-itinerary", {
+          body: { destination, startDate, endDate, interests, travelers, budget, specialRequests },
+        });
+        if (!fnError && fnData && !fnData.error) {
+          data = fnData;
+        } else {
+          fnErrorObj = fnError || new Error(fnData?.error || "Edge function failed");
+        }
+      } catch (e) {
+        fnErrorObj = e;
+      }
 
       if (!data?.itinerary && isGeminiConfigured()) {
         data = await generateItinerary({
@@ -161,13 +167,13 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
         });
       }
 
-      if (!data?.itinerary) throw new Error("AI Planner returned no itinerary");
+      if (!data?.itinerary) throw (fnErrorObj || new Error("AI Planner returned no itinerary"));
 
       if (!cancelled) {
         setAiData(data);
         const withIds = (data.itinerary || []).map((item: any) => ({
           ...item,
-          id: item.id || crypto.randomUUID()
+          id: item.id || (window.crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15))
         }));
         setLocalItinerary(withIds);
       }
@@ -250,7 +256,7 @@ const Itinerary = ({ destination, startDate, endDate, interests, travelers, budg
 
       if (!cancelled) {
         setAiData(mockResponse);
-        const mockWithIds = mockItinerary.map(item => ({ ...item, id: crypto.randomUUID() }));
+        const mockWithIds = mockItinerary.map(item => ({ ...item, id: (window.crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15)) }));
         setLocalItinerary(mockWithIds);
       }
     } finally {
